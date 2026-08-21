@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import MicButton from "./MicButton";
 import SpeakButton from "./SpeakButton";
+import { useRecognition } from "@/lib/use-recognition";
 import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
@@ -73,6 +75,7 @@ export default function SentenceExercise({
   const mode = SENTENCE_MODES[exercise];
   const modeLabels = SENTENCE_MODE_LABELS[mode];
   const isDictation = mode === "dictation";
+  const isSpeaking = mode === "speak";
   // En dictado el audio ES el ejercicio, así que suena aunque la pronunciación
   // automática esté apagada en la configuración.
   const speak = useSpeech({
@@ -125,6 +128,44 @@ export default function SentenceExercise({
     if (!isDictation || !sentence) return;
     speak(sentence.spanish);
   }, [isDictation, sentence, speak]);
+
+  const revisar = useCallback(
+    async (texto: string) => {
+      if (!sentence || feedback || !texto.trim()) return;
+      setChecking(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/sentences/${exercise}/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sentenceId: sentence.id, answer: texto }),
+        });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        setState(data.state as PracticeState);
+        setAnswer(texto);
+        setFeedback({
+          correct: data.correct,
+          expected: data.expected,
+          item: data.item,
+          given: texto,
+        });
+        if (data.correct) speak(englishOf(data.expected));
+        setSession((s) => ({
+          correct: s.correct + (data.correct ? 1 : 0),
+          total: s.total + 1,
+          streak: data.correct ? s.streak + 1 : 0,
+        }));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo revisar la frase");
+      } finally {
+        setChecking(false);
+      }
+    },
+    [sentence, feedback, exercise, setError, setState, speak, englishOf],
+  );
+
+  const { status, interim, listen, stop } = useRecognition();
 
   const check = useCallback(async () => {
     if (!sentence || feedback || !answer.trim()) return;
@@ -234,7 +275,28 @@ export default function SentenceExercise({
             <p className="mt-4 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
               {modeLabels.title}
             </p>
-            {isDictation ? (
+            {isSpeaking ? (
+              <>
+                <p className="mt-2 text-center text-xl font-bold tracking-tight sm:text-3xl">
+                  {sentence.spanish}
+                </p>
+                <div className="mt-3 flex justify-center">
+                  <SpeakButton
+                    onSpeak={() => speak(sentence.spanish)}
+                    label="Escuchar el modelo"
+                  />
+                </div>
+                <div className="mt-5">
+                  <MicButton
+                    status={status}
+                    interim={interim}
+                    disabled={checking || feedback !== null}
+                    onListen={() => listen((texto) => void revisar(texto))}
+                    onStop={stop}
+                  />
+                </div>
+              </>
+            ) : isDictation ? (
               <div className="mt-4 flex flex-col items-center gap-3">
                 <button
                   type="button"
@@ -272,6 +334,19 @@ export default function SentenceExercise({
               </p>
             )}
 
+            {isSpeaking ? (
+              <div className="mt-6 flex justify-center">
+                {feedback && (
+                  <button
+                    type="button"
+                    onClick={() => void loadSentence(level, sentence.id)}
+                    className="rounded-xl bg-sky-600 px-5 py-3 font-medium text-white transition hover:bg-sky-700"
+                  >
+                    Siguiente
+                  </button>
+                )}
+              </div>
+            ) : (
             <form
               className="mt-6 flex flex-col gap-3 sm:flex-row"
               onSubmit={(e) => {
@@ -307,6 +382,7 @@ export default function SentenceExercise({
                 {feedback ? "Siguiente" : "Revisar"}
               </button>
             </form>
+            )}
 
             {feedback && (
               <div className="mt-5">

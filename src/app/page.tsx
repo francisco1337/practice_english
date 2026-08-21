@@ -1,8 +1,14 @@
 import Link from "next/link";
+import DailyPlanCard from "@/components/DailyPlanCard";
 import LevelCard from "@/components/LevelCard";
 import { levels } from "@/lib/levels";
+import { getDailyPlan } from "@/lib/plan";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const plan = await getDailyPlan();
+
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
       <header className="mb-8 flex items-start justify-between gap-4 sm:mb-12">
@@ -22,6 +28,8 @@ export default function Home() {
           Configuración
         </Link>
       </header>
+
+      {plan.enabled && <DailyPlanCard plan={plan} />}
 
       <section aria-labelledby="niveles">
         <h2

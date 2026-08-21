@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { execute, pool, query } from "./db";
 import { isAnswerCorrect, isSentenceCorrect } from "./practice";
+import { logActivity } from "./practice-db";
 import {
   EXAM_PASS_GLOBAL,
   EXAM_PASS_SECTION,
@@ -198,6 +199,7 @@ export async function answerQuestion(questionId: number, given: string) {
        ON DUPLICATE KEY UPDATE given = VALUES(given), correct = VALUES(correct)`,
     [attemptId, questionId, given.slice(0, 400), correct ? 1 : 0],
   );
+  await logActivity("exam", correct);
 
   return getExamState();
 }

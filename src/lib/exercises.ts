@@ -41,6 +41,12 @@ export const a1Groups: ExerciseGroup[] = [
         description: "Te damos el verbo en inglés y lo escribes en español.",
       },
       {
+        href: "/a1/pronunciar",
+        name: "Pronunciar",
+        description:
+          "Se muestra el verbo en inglés, tú lo dices y el navegador compara lo que escuchó.",
+      },
+      {
         href: "/a1/dictado",
         name: "Dictado",
         description:
@@ -173,25 +179,34 @@ export const whExercises: ExerciseCard[] = [
   {
     href: "/a1/preguntas/completar",
     name: "Completar pregunta",
-    description: "La pregunta viene con un hueco y tú pones la palabra que falta.",
+    description:
+      "La pregunta viene con un hueco y tú pones la palabra que falta.",
   },
   {
     href: "/a1/preguntas/traducir",
     name: "Traducir pregunta",
-    description: "Lees la pregunta en español y la escribes completa en inglés.",
+    description:
+      "Lees la pregunta en español y la escribes completa en inglés.",
   },
   {
     href: "/a1/preguntas/dictado",
     name: "Dictado",
+    description: "Escuchas la pregunta en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/preguntas/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la pregunta en inglés y la escribes. Cinco niveles.",
-  },];
+      "Dices la pregunta en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const prepExercises: ExerciseCard[] = [
   {
     href: "/a1/preposiciones/completar",
     name: "Completar oración",
-    description: "La frase viene con un hueco y tú pones la preposición correcta.",
+    description:
+      "La frase viene con un hueco y tú pones la preposición correcta.",
   },
   {
     href: "/a1/preposiciones/traducir",
@@ -206,9 +221,15 @@ export const prepExercises: ExerciseCard[] = [
   {
     href: "/a1/preposiciones/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/preposiciones/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const advExercises: ExerciseCard[] = [
   {
@@ -230,9 +251,15 @@ export const advExercises: ExerciseCard[] = [
   {
     href: "/a1/adverbios/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/adverbios/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const phraseExercises: ExerciseCard[] = [
   {
@@ -243,21 +270,36 @@ export const phraseExercises: ExerciseCard[] = [
   {
     href: "/a1/frases-utiles/relacionar-inverso",
     name: "Relacionar inverso",
-    description: "Te damos la frase en inglés y eliges qué significa en español.",
+    description:
+      "Te damos la frase en inglés y eliges qué significa en español.",
   },
   {
     href: "/a1/frases-utiles/escribir",
     name: "Escribir",
-    description: "Te damos la frase en español y la escribes completa en inglés.",
+    description:
+      "Te damos la frase en español y la escribes completa en inglés.",
   },
   {
     href: "/a1/frases-utiles/dictado",
     name: "Dictado",
+    description: "Escuchas la frase completa en inglés y la escribes.",
+  },
+  {
+    href: "/a1/frases-utiles/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase completa en inglés y la escribes.",
-  },];
+      "Dices la frase completa en voz alta y el navegador te escucha.",
+  },
+];
 
 export const pronounExercises: ExerciseCard[] = [
+  {
+    href: "/a1/pronombres/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/pronombres/relacionar",
     name: "Relacionar",
@@ -267,8 +309,7 @@ export const pronounExercises: ExerciseCard[] = [
   {
     href: "/a1/pronombres/relacionar-inverso",
     name: "Relacionar inverso",
-    description:
-      "Te damos el pronombre en inglés y eliges cuál es en español.",
+    description: "Te damos el pronombre en inglés y eliges cuál es en español.",
   },
   {
     href: "/a1/pronombres/traducir",
@@ -279,11 +320,24 @@ export const pronounExercises: ExerciseCard[] = [
   {
     href: "/a1/pronombres/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/pronombres/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const tobeExercises: ExerciseCard[] = [
+  {
+    href: "/a1/to-be/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/to-be/relacionar",
     name: "Relacionar",
@@ -293,7 +347,8 @@ export const tobeExercises: ExerciseCard[] = [
   {
     href: "/a1/to-be/relacionar-inverso",
     name: "Relacionar inverso",
-    description: "Te damos la forma en inglés y eliges qué significa en español.",
+    description:
+      "Te damos la forma en inglés y eliges qué significa en español.",
   },
   {
     href: "/a1/to-be/traducir",
@@ -304,11 +359,24 @@ export const tobeExercises: ExerciseCard[] = [
   {
     href: "/a1/to-be/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/to-be/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const articleExercises: ExerciseCard[] = [
+  {
+    href: "/a1/articulos/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/articulos/relacionar",
     name: "Relacionar",
@@ -318,7 +386,8 @@ export const articleExercises: ExerciseCard[] = [
   {
     href: "/a1/articulos/relacionar-inverso",
     name: "Relacionar inverso",
-    description: "Te damos la frase en inglés y eliges qué significa en español.",
+    description:
+      "Te damos la frase en inglés y eliges qué significa en español.",
   },
   {
     href: "/a1/articulos/traducir",
@@ -329,11 +398,24 @@ export const articleExercises: ExerciseCard[] = [
   {
     href: "/a1/articulos/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/articulos/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const presentExercises: ExerciseCard[] = [
+  {
+    href: "/a1/presente-simple/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/presente-simple/traducir",
     name: "Traducir frase",
@@ -354,11 +436,24 @@ export const presentExercises: ExerciseCard[] = [
   {
     href: "/a1/presente-simple/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/presente-simple/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const qaExercises: ExerciseCard[] = [
+  {
+    href: "/a1/preguntas-respuestas/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/preguntas-respuestas/traducir",
     name: "Traducir pregunta y respuesta",
@@ -381,9 +476,23 @@ export const qaExercises: ExerciseCard[] = [
     name: "Dictado",
     description:
       "Escuchas la pregunta y la respuesta, y escribes las dos. Cinco niveles.",
-  },];
+  },
+  {
+    href: "/a1/preguntas-respuestas/pronunciar",
+    name: "Pronunciar",
+    description:
+      "Dices la pregunta y la respuesta en voz alta, cada una con su micrófono.",
+  },
+];
 
 export const thirdExercises: ExerciseCard[] = [
+  {
+    href: "/a1/tercera-persona/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/tercera-persona/traducir",
     name: "Traducir frase",
@@ -404,11 +513,24 @@ export const thirdExercises: ExerciseCard[] = [
   {
     href: "/a1/tercera-persona/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/tercera-persona/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const thereExercises: ExerciseCard[] = [
+  {
+    href: "/a1/there-is-are/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/there-is-are/traducir",
     name: "Traducir frase",
@@ -429,11 +551,24 @@ export const thereExercises: ExerciseCard[] = [
   {
     href: "/a1/there-is-are/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/there-is-are/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];
 
 export const contExercises: ExerciseCard[] = [
+  {
+    href: "/a1/presente-continuo/teoria",
+    name: "Teoría",
+    description:
+      "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+    cta: "Leer",
+  },
   {
     href: "/a1/presente-continuo/traducir",
     name: "Traducir frase",
@@ -454,6 +589,12 @@ export const contExercises: ExerciseCard[] = [
   {
     href: "/a1/presente-continuo/dictado",
     name: "Dictado",
+    description: "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },
+  {
+    href: "/a1/presente-continuo/pronunciar",
+    name: "Pronunciar",
     description:
-      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
-  },];
+      "Lees la frase en voz alta y el navegador te escucha. Cinco niveles.",
+  },
+];

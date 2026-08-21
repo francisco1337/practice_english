@@ -3,6 +3,8 @@ import { badRequest, parseExercise } from "@/lib/api-helpers";
 import { getSettings } from "@/lib/practice-db";
 import {
   getPracticeState,
+  setDailyGoal,
+  setDailyPlanEnabled,
   setMasteryTarget,
   setSpeechEnabled,
   setSpeechRate,
@@ -28,14 +30,19 @@ export async function POST(request: Request) {
     return badRequest("Ejercicio desconocido");
   }
 
-  const { masteryTarget, speechEnabled, speechRate } = body ?? {};
+  const { masteryTarget, speechEnabled, speechRate, dailyPlanEnabled, dailyGoal } =
+    body ?? {};
 
   if (
     masteryTarget === undefined &&
     speechEnabled === undefined &&
-    speechRate === undefined
+    speechRate === undefined &&
+    dailyPlanEnabled === undefined &&
+    dailyGoal === undefined
   ) {
-    return badRequest("Se esperaba masteryTarget, speechEnabled o speechRate");
+    return badRequest(
+      "Se esperaba masteryTarget, speechEnabled, speechRate, dailyPlanEnabled o dailyGoal",
+    );
   }
   if (masteryTarget !== undefined && !Number.isFinite(Number(masteryTarget))) {
     return badRequest("masteryTarget inválido");
@@ -46,10 +53,18 @@ export async function POST(request: Request) {
   if (speechRate !== undefined && !Number.isFinite(Number(speechRate))) {
     return badRequest("speechRate inválido");
   }
+  if (dailyPlanEnabled !== undefined && typeof dailyPlanEnabled !== "boolean") {
+    return badRequest("dailyPlanEnabled inválido");
+  }
+  if (dailyGoal !== undefined && !Number.isFinite(Number(dailyGoal))) {
+    return badRequest("dailyGoal inválido");
+  }
 
   if (masteryTarget !== undefined) await setMasteryTarget(Number(masteryTarget));
   if (speechEnabled !== undefined) await setSpeechEnabled(speechEnabled);
   if (speechRate !== undefined) await setSpeechRate(Number(speechRate));
+  if (dailyPlanEnabled !== undefined) await setDailyPlanEnabled(dailyPlanEnabled);
+  if (dailyGoal !== undefined) await setDailyGoal(Number(dailyGoal));
 
   if (!exercise) return NextResponse.json({ settings: await getSettings() });
   return NextResponse.json(await getPracticeState(exercise));

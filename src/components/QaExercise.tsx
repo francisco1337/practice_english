@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import MicButton from "./MicButton";
 import SpeakButton from "./SpeakButton";
+import { useRecognition } from "@/lib/use-recognition";
 import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
@@ -57,10 +59,13 @@ export default function QaExercise({
   const [checking, setChecking] = useState(false);
   const [session, setSession] = useState({ correct: 0, total: 0, streak: 0 });
   const questionRef = useRef<HTMLInputElement>(null);
+  const [micTarget, setMicTarget] = useState<"question" | "answer" | null>(null);
+  const { status, interim, listen, stop } = useRecognition();
 
   const mode = QA_MODES[exercise];
   const labels = QA_MODE_LABELS[mode];
   const isDictation = mode === "dictation";
+  const isSpeaking = mode === "speak";
   const speak = useSpeech({
     enabled: isDictation || state.settings.speechEnabled,
     rate: state.settings.speechRate,
@@ -213,7 +218,50 @@ export default function QaExercise({
             <p className="mt-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
               {labels.title}
             </p>
-            {isDictation ? (
+            {isSpeaking ? (
+              <>
+                <p className="mt-2 text-center text-lg font-bold tracking-tight sm:text-2xl">
+                  {pair.question}
+                </p>
+                <p className="mt-1 text-center text-base font-semibold text-slate-600 sm:text-xl dark:text-slate-300">
+                  {pair.answer}
+                </p>
+                <div className="mt-3 flex justify-center">
+                  <SpeakButton
+                    onSpeak={() => speak(`${pair.question} ${pair.answer}`)}
+                    label="Escuchar el modelo"
+                  />
+                </div>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {(["question", "answer"] as const).map((campo) => (
+                    <div key={campo} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                      <p className="text-center text-xs font-medium text-slate-500">
+                        {campo === "question" ? "Di la pregunta" : "Di la respuesta"}
+                      </p>
+                      <div className="mt-3">
+                        <MicButton
+                          status={micTarget === campo ? status : "listo"}
+                          interim={micTarget === campo ? interim : ""}
+                          disabled={feedback !== null || (micTarget !== null && micTarget !== campo)}
+                          onListen={() => {
+                            setMicTarget(campo);
+                            listen((texto) => {
+                              if (campo === "question") setQuestion(texto);
+                              else setAnswer(texto);
+                              setMicTarget(null);
+                            });
+                          }}
+                          onStop={stop}
+                        />
+                      </div>
+                      <p className="mt-2 min-h-6 text-center text-sm font-medium">
+                        {campo === "question" ? question : answer}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : isDictation ? (
               <div className="mt-4 flex flex-col items-center gap-3">
                 <button
                   type="button"

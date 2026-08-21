@@ -53,7 +53,20 @@ export type ExerciseKey =
   | "qa-dict"
   | "wh-dict"
   | "prep-dict"
-  | "adv-dict";
+  | "adv-dict"
+  | "a1-speak"
+  | "ph-speak"
+  | "qa-speak"
+  | "pron-speak"
+  | "tobe-speak"
+  | "art-speak"
+  | "ps-speak"
+  | "tp-speak"
+  | "th-speak"
+  | "pc-speak"
+  | "wh-speak"
+  | "prep-speak"
+  | "adv-speak";
 
 export type ItemType =
   | "verb"
@@ -124,6 +137,19 @@ export const EXERCISE_ITEM_TYPES: Record<ExerciseKey, ItemType[]> = {
   "wh-dict": ["wh"],
   "prep-dict": ["prep"],
   "adv-dict": ["adv"],
+  "a1-speak": ["verb"],
+  "ph-speak": ["phrase"],
+  "qa-speak": ["qa"],
+  "pron-speak": ["pronoun"],
+  "tobe-speak": ["tobe"],
+  "art-speak": ["article"],
+  "ps-speak": ["present"],
+  "tp-speak": ["third"],
+  "th-speak": ["there"],
+  "pc-speak": ["cont"],
+  "wh-speak": ["wh"],
+  "prep-speak": ["prep"],
+  "adv-speak": ["adv"],
 };
 
 export function isExerciseKey(value: string): value is ExerciseKey {
@@ -166,7 +192,14 @@ export type Settings = {
   speechEnabled: boolean;
   /** Velocidad de lectura (0.6 a 1.3). La voz se guarda por dispositivo. */
   speechRate: number;
+  /** Si el inicio muestra el plan del día. */
+  dailyPlanEnabled: boolean;
+  /** Respuestas que busca el plan del día. */
+  dailyGoal: number;
 };
+
+export const DAILY_GOAL_MIN = 10;
+export const DAILY_GOAL_MAX = 200;
 
 export const SPEECH_RATE_MIN = 0.6;
 export const SPEECH_RATE_MAX = 1.3;
@@ -195,7 +228,13 @@ export type TranslateLevel = (typeof TRANSLATE_LEVELS)[number];
  * Modo de un ejercicio de frases: traducir al inglés, traducir al español o
  * completar el hueco de una oración en inglés.
  */
-export type SentenceMode = "es-en" | "en-es" | "cloze" | "fix" | "dictation";
+export type SentenceMode =
+  | "es-en"
+  | "en-es"
+  | "cloze"
+  | "fix"
+  | "dictation"
+  | "speak";
 
 export type SentenceExerciseKey =
   | "translate"
@@ -229,7 +268,17 @@ export type SentenceExerciseKey =
   | "pc-dict"
   | "wh-dict"
   | "prep-dict"
-  | "adv-dict";
+  | "adv-dict"
+  | "pron-speak"
+  | "tobe-speak"
+  | "art-speak"
+  | "ps-speak"
+  | "tp-speak"
+  | "th-speak"
+  | "pc-speak"
+  | "wh-speak"
+  | "prep-speak"
+  | "adv-speak";
 
 export const SENTENCE_MODES: Record<SentenceExerciseKey, SentenceMode> = {
   translate: "es-en",
@@ -264,6 +313,16 @@ export const SENTENCE_MODES: Record<SentenceExerciseKey, SentenceMode> = {
   "wh-dict": "dictation",
   "prep-dict": "dictation",
   "adv-dict": "dictation",
+  "pron-speak": "speak",
+  "tobe-speak": "speak",
+  "art-speak": "speak",
+  "ps-speak": "speak",
+  "tp-speak": "speak",
+  "th-speak": "speak",
+  "pc-speak": "speak",
+  "wh-speak": "speak",
+  "prep-speak": "speak",
+  "adv-speak": "speak",
 };
 
 export function isSentenceExerciseKey(
@@ -286,6 +345,10 @@ export const SENTENCE_MODE_LABELS: Record<
   dictation: {
     title: "Escucha y escríbelo en inglés",
     placeholder: "What you hear…",
+  },
+  speak: {
+    title: "Dilo en voz alta en inglés",
+    placeholder: "Lo que se oyó…",
   },
 };
 
@@ -417,6 +480,34 @@ export const SENTENCE_LEVEL_LABELS: Record<
   "wh-dict": WH_LEVEL_LABELS,
   "prep-dict": PREP_LEVEL_LABELS,
   "adv-dict": ADV_LEVEL_LABELS,
+  "pron-speak": {
+    1: "Presente simple, frases cortas",
+    2: "Negativo e interrogativo, pronombres de objeto",
+    3: "Pasado simple, adjetivos posesivos",
+    4: "Futuro y presente continuo, pronombres posesivos",
+    5: "Dos cláusulas con conectores",
+  },
+  "tobe-speak": {
+    1: "Presente afirmativo: am, is, are",
+    2: "Presente negativo y preguntas",
+    3: "Pasado: was, were",
+    4: "Preguntas en pasado, futuro y there is/are",
+    5: "Dos cláusulas y presente continuo",
+  },
+  "art-speak": {
+    1: "a + sonido de consonante",
+    2: "an + sonido de vocal",
+    3: "the en singular y plural",
+    4: "Sin artículo",
+    5: "Dos cláusulas mezclando todo",
+  },
+  "ps-speak": PRESENT_LEVEL_LABELS,
+  "tp-speak": THIRD_LEVEL_LABELS,
+  "th-speak": THERE_LEVEL_LABELS,
+  "pc-speak": CONT_LEVEL_LABELS,
+  "wh-speak": WH_LEVEL_LABELS,
+  "prep-speak": PREP_LEVEL_LABELS,
+  "adv-speak": ADV_LEVEL_LABELS,
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -643,6 +734,19 @@ const CONTRACTIONS: [RegExp, string][] = [
   [/\bno one\b/g, "nobody"],
 ];
 
+/**
+ * El reconocimiento de voz devuelve «3» donde el texto dice «three», así que
+ * los números se llevan siempre a palabra antes de comparar.
+ */
+const NUMBER_WORDS: Record<string, string> = {
+  "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five",
+  "6": "six", "7": "seven", "8": "eight", "9": "nine", "10": "ten",
+  "11": "eleven", "12": "twelve", "13": "thirteen", "14": "fourteen",
+  "15": "fifteen", "16": "sixteen", "17": "seventeen", "18": "eighteen",
+  "19": "nineteen", "20": "twenty", "30": "thirty", "40": "forty",
+  "50": "fifty", "60": "sixty", "100": "one hundred",
+};
+
 /** Deja la frase comparable: sin mayúsculas, puntuación ni contracciones. */
 export function canonical(text: string): string {
   let out = text
@@ -652,6 +756,10 @@ export function canonical(text: string): string {
   for (const [pattern, replacement] of CONTRACTIONS) {
     out = out.replace(pattern, replacement);
   }
+  out = out.replace(
+    /\b\d+\b/g,
+    (digits) => NUMBER_WORDS[digits] ?? digits,
+  );
   return out.replace(/\s+/g, " ").trim();
 }
 
@@ -729,19 +837,21 @@ export function diffWords(given: string, expected: string) {
  * traducirlo al español, o armar la pregunta y la respuesta a partir de una
  * consigna en español.
  */
-export type QaMode = "es-en" | "en-es" | "cue" | "dictation";
+export type QaMode = "es-en" | "en-es" | "cue" | "dictation" | "speak";
 
 export type QaExerciseKey =
   | "qa-translate"
   | "qa-translate-rev"
   | "qa-ask"
-  | "qa-dict";
+  | "qa-dict"
+  | "qa-speak";
 
 export const QA_MODES: Record<QaExerciseKey, QaMode> = {
   "qa-translate": "es-en",
   "qa-translate-rev": "en-es",
   "qa-ask": "cue",
   "qa-dict": "dictation",
+  "qa-speak": "speak",
 };
 
 export function isQaExerciseKey(value: string): value is QaExerciseKey {
@@ -775,6 +885,12 @@ export const QA_MODE_LABELS: Record<
     questionLabel: "Pregunta que oíste",
     answerLabel: "Respuesta que oíste",
     placeholder: "What you hear…",
+  },
+  speak: {
+    title: "Di en voz alta la pregunta y la respuesta",
+    questionLabel: "Pregunta que se oyó",
+    answerLabel: "Respuesta que se oyó",
+    placeholder: "Lo que se oyó…",
   },
 };
 

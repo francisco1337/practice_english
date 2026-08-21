@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import {
+  DAILY_GOAL_MAX,
+  DAILY_GOAL_MIN,
   MASTERY_TARGET_MAX,
   MASTERY_TARGET_MIN,
   SPEECH_RATE_MAX,
@@ -215,6 +217,73 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
               </div>
             )}
           </>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">Plan del día</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              El inicio propone qué practicar hoy: primero los repasos vencidos,
+              luego lo más flojo, y siempre un bloque de oído y uno de boca.
+              Apagado, el inicio queda como antes y entras a cada ejercicio por
+              tu cuenta.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.dailyPlanEnabled}
+            aria-label="Plan del día"
+            disabled={busy}
+            onClick={() => void save({ dailyPlanEnabled: !settings.dailyPlanEnabled })}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
+              settings.dailyPlanEnabled
+                ? "bg-sky-600"
+                : "bg-slate-300 dark:bg-slate-700"
+            }`}
+          >
+            <span
+              className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                settings.dailyPlanEnabled ? "left-6" : "left-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        {settings.dailyPlanEnabled && (
+          <label className="mt-5 flex items-center justify-between gap-3 text-sm">
+            <span className="text-slate-600 dark:text-slate-400">
+              Respuestas por día
+            </span>
+            <input
+              key={settings.dailyGoal}
+              type="number"
+              min={DAILY_GOAL_MIN}
+              max={DAILY_GOAL_MAX}
+              step={5}
+              defaultValue={settings.dailyGoal}
+              disabled={busy}
+              onBlur={(e) => {
+                const value = Number(e.currentTarget.value);
+                if (!Number.isFinite(value)) return;
+                const clamped = Math.min(
+                  DAILY_GOAL_MAX,
+                  Math.max(DAILY_GOAL_MIN, Math.round(value)),
+                );
+                e.currentTarget.value = String(clamped);
+                if (clamped !== settings.dailyGoal) {
+                  void save({ dailyGoal: clamped });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right tabular-nums dark:border-slate-700 dark:bg-slate-800"
+            />
+          </label>
         )}
       </section>
 

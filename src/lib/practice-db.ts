@@ -2,6 +2,8 @@ import type { RowDataPacket } from "mysql2";
 import { execute, query } from "./db";
 import {
   EXERCISE_ITEM_TYPES,
+  DAILY_GOAL_MAX,
+  DAILY_GOAL_MIN,
   MASTERY_TARGET_MAX,
   MASTERY_TARGET_MIN,
   REVIEW_INTERVALS,
@@ -168,14 +170,19 @@ export async function getSettings(): Promise<Settings> {
       mastery_target: number;
       speech_enabled: number;
       speech_rate: string | number;
+      daily_plan_enabled: number;
+      daily_goal: number;
     })[]
   >(
-    "SELECT mastery_target, speech_enabled, speech_rate FROM settings WHERE id = 1",
+    `SELECT mastery_target, speech_enabled, speech_rate, daily_plan_enabled, daily_goal
+       FROM settings WHERE id = 1`,
   );
   return {
     masteryTarget: rows[0]?.mastery_target ?? 10,
     speechEnabled: rows[0]?.speech_enabled !== 0,
     speechRate: Number(rows[0]?.speech_rate ?? 0.95),
+    dailyPlanEnabled: rows[0]?.daily_plan_enabled !== 0,
+    dailyGoal: Number(rows[0]?.daily_goal ?? 40),
   };
 }
 
@@ -184,6 +191,20 @@ export async function setSpeechEnabled(enabled: boolean) {
   await execute("UPDATE settings SET speech_enabled = ? WHERE id = 1", [
     enabled ? 1 : 0,
   ]);
+}
+
+export async function setDailyPlanEnabled(enabled: boolean) {
+  await execute("UPDATE settings SET daily_plan_enabled = ? WHERE id = 1", [
+    enabled ? 1 : 0,
+  ]);
+}
+
+export async function setDailyGoal(goal: number) {
+  const clamped = Math.min(
+    DAILY_GOAL_MAX,
+    Math.max(DAILY_GOAL_MIN, Math.round(goal)),
+  );
+  await execute("UPDATE settings SET daily_goal = ? WHERE id = 1", [clamped]);
 }
 
 export async function setSpeechRate(rate: number) {
@@ -215,12 +236,28 @@ export async function getPracticeState(
  * Registra una respuesta: el acierto suma y marca como dominado al llegar al
  * umbral; el error reinicia el contador de ese elemento a cero.
  */
+/**
+ * Suma una respuesta al registro del día (para el plan y la racha). El examen
+ * no tiene progreso por elemento, pero sus respuestas también cuentan.
+ */
+export async function logActivity(
+  exercise: ExerciseKey | "exam",
+  correct: boolean,
+) {
+  await execute(
+    `INSERT INTO activity (day, exercise, answers, correct) VALUES (CURDATE(), ?, 1, ?)
+       ON DUPLICATE KEY UPDATE answers = answers + 1, correct = correct + VALUES(correct)`,
+    [exercise, correct ? 1 : 0],
+  );
+}
+
 export async function registerAnswer(
   exercise: ExerciseKey,
   itemType: ItemType,
   itemId: number,
   correct: boolean,
 ) {
+  await logActivity(exercise, correct);
   const { masteryTarget } = await getSettings();
 
   const rows = await query<
@@ -600,6 +637,76 @@ const SENTENCE_EXERCISES = {
     itemColumn: "form_id",
     withVerbs: false,
   },
+  "pron-speak": {
+    itemType: "pronoun" as ItemType,
+    table: "sentences",
+    itemTable: "pronouns",
+    itemColumn: "pronoun_id",
+    withVerbs: false,
+  },
+  "tobe-speak": {
+    itemType: "tobe" as ItemType,
+    table: "tobe_sentences",
+    itemTable: "tobe_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "art-speak": {
+    itemType: "article" as ItemType,
+    table: "article_sentences",
+    itemTable: "article_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "ps-speak": {
+    itemType: "present" as ItemType,
+    table: "present_sentences",
+    itemTable: "present_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "tp-speak": {
+    itemType: "third" as ItemType,
+    table: "third_sentences",
+    itemTable: "third_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "th-speak": {
+    itemType: "there" as ItemType,
+    table: "there_sentences",
+    itemTable: "there_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "pc-speak": {
+    itemType: "cont" as ItemType,
+    table: "cont_sentences",
+    itemTable: "cont_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "wh-speak": {
+    itemType: "wh" as ItemType,
+    table: "wh_sentences",
+    itemTable: "wh_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "prep-speak": {
+    itemType: "prep" as ItemType,
+    table: "prep_sentences",
+    itemTable: "prep_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
+  "adv-speak": {
+    itemType: "adv" as ItemType,
+    table: "adv_sentences",
+    itemTable: "adv_forms",
+    itemColumn: "form_id",
+    withVerbs: false,
+  },
 } satisfies Record<SentenceExerciseKey, unknown>;
 
 type SentenceRow = RowDataPacket & {
@@ -630,6 +737,7 @@ function parseAlternatives(
   if (mode === "cloze") return [];
   if (mode === "fix") return [];
   if (mode === "dictation") return [];
+  if (mode === "speak") return [];
   const parsed = parseJson<string[] | { en?: string[]; es?: string[] }>(
     value ?? null,
   );
@@ -674,7 +782,7 @@ function promptAndAnswer(row: SentenceRow, exercise: SentenceExerciseKey) {
   }
   // En dictado el «prompt» viaja al cliente solo para poder pronunciarlo: la
   // interfaz no lo muestra hasta que se responde.
-  if (mode === "dictation") {
+  if (mode === "dictation" || mode === "speak") {
     return { prompt: row.english, expected: row.english };
   }
   if (mode === "en-es") return { prompt: row.english, expected: row.spanish };
@@ -803,7 +911,7 @@ function qaPromptAndAnswers(row: QaRow, exercise: QaExerciseKey) {
     };
   }
   // En dictado el texto viaja para poder pronunciarlo; la interfaz lo oculta.
-  if (mode === "dictation") {
+  if (mode === "dictation" || mode === "speak") {
     return {
       question: row.english_question,
       answer: row.english_answer,

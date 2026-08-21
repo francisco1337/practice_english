@@ -44,7 +44,8 @@ Tablas:
   El `slug` distingue palabras que se repiten (`you`/`you-obj`, `her-adj`/`her-obj`, `his-adj`/`his-pron`, `it`/`it-obj`)
 - `sentences` — 400 frases (80 verbos × 5 niveles) con `spanish`, `english`, `alternatives` (JSON), y el verbo y pronombre que practica
 - `progress` — progreso por `(exercise, item_type, item_id)`: `correct_count`, `wrong_count`, `mastered`, `active`
-- `settings` — fila única con `mastery_target`
+- `settings` — fila única con `mastery_target`, la voz (`speech_enabled`, `speech_rate`) y el plan del día (`daily_plan_enabled`, `daily_goal`)
+- `activity` — respuestas por día y ejercicio (`day`, `exercise`, `answers`, `correct`); alimenta el plan del día y la racha
 
 Ejercicios (`exercise` en `progress`):
 
@@ -147,6 +148,34 @@ Tablas: `exam_questions` (banco, identificado por sección y posición), `exam_a
 Las formas están en `scripts/verb-forms.mjs` y el script de carga valida las 78 regulares contra
 las reglas de ortografía, así que un dedazo no pasa desapercibido.
 
+## Teoría
+
+Cada tema de gramática tiene su página de teoría (`/a1/<tema>/teoria`), primera tarjeta del menú:
+tablas de formas, reglas con su ejemplo correcto y el error típico marcado, y avisos de lo que más
+se confunde. El contenido vive en `src/lib/theory.ts` (no en la base) para versionarse junto a los
+ejercicios que lo ejercitan.
+
+Temas con teoría: pronombres, verbo to be, artículos, presente simple, tercera persona, presente
+continuo, there is/are, y preguntas y respuestas con do/does.
+
+## Pronunciación con micrófono
+
+Se muestra la frase en inglés, la dices en voz alta y el navegador transcribe con
+`SpeechRecognition`; la transcripción se califica con las mismas reglas tolerantes que lo escrito
+(mayúsculas, puntuación, contracciones) más normalización de números, porque el reconocedor devuelve
+«3» donde el texto dice «three». Antes de intentarlo puedes oír el modelo con 🔊.
+
+Hay ejercicio de pronunciar en los mismos trece lugares que el dictado, con los mismos niveles. En
+preguntas y respuestas hay un micrófono por campo: primero dices la pregunta, luego la respuesta.
+
+Requisitos honestos:
+
+- **Contexto seguro**: funciona en `localhost` y en HTTPS (el deploy de Vercel sirve). Por
+  `http://IP-local` el navegador bloquea el micrófono y la app lo avisa.
+- **Navegador**: Chrome (escritorio y Android) y Edge; Safari desde 14.1. Si no hay soporte, el
+  botón queda deshabilitado con el motivo.
+- Chrome envía el audio a sus servidores para transcribirlo, así que hace falta conexión.
+
 ## Dictado (comprensión auditiva)
 
 Se reproduce la oración en inglés y hay que escribirla. El texto **no se muestra** hasta responder;
@@ -214,6 +243,29 @@ Columnas nuevas en `progress`: `mastered_at`, `review_stage`, `review_due`.
 `npm run db:init` además **sincroniza el invariante** «dominado = llegó al umbral vigente»: si el
 umbral cambió, lo que ya no califica vuelve a práctica y lo que sí, queda dominado con su repaso
 programado.
+
+## Plan del día
+
+El inicio propone qué practicar hoy en lugar de dejarte elegir entre 60 ejercicios. Se activa o se
+apaga en **Configuración → Plan del día**; apagado, el inicio queda como antes.
+
+Cómo arma los cuatro bloques:
+
+1. **Repasos vencidos** primero (máximo 3 ejercicios y 15 respuestas, para que nunca sea avalancha).
+2. **Lo más flojo**: dos ejercicios escritos con la peor proporción de dominado, entre los que
+   todavía tienen pendientes.
+3. **Oído**: un dictado. 4. **Boca**: una pronunciación.
+
+Detalles que importan:
+
+- Nunca repite tema en el mismo día: si adverbios ya salió, el siguiente bloque busca otro tema.
+- Los tamaños suman exactamente la **meta de respuestas por día** (10–200, por defecto 40).
+- Es determinista: el mismo día siempre propone lo mismo, y lo que ya hiciste aparece completado
+  en lugar de cambiarse por otra cosa. Rota con el día del año para no caer siempre en lo mismo.
+- La **racha** cuenta días seguidos con actividad; el día de hoy sin practicar todavía no la rompe.
+- El día corta a medianoche de México (`APP_TIME_ZONE`, por defecto `-06:00`), no a medianoche UTC:
+  el servidor de Aiven corre en UTC y sin eso una práctica de la noche contaría para el día
+  siguiente.
 
 ## Reglas del progreso
 
@@ -324,9 +376,11 @@ Los de pregunta y respuesta usan otro motor de dos campos con sus propios modos:
 - `src/components/ProgressPanel.tsx` — panel de progreso y filtros
 - `src/lib/practice.ts` — tipos, armado de preguntas y verificación de respuestas (compartido)
 - `src/lib/practice-db.ts` — consultas a MySQL
+- `src/lib/plan.ts` — armado del plan del día (repasos, lo más flojo, oído y boca) y la racha
+- `src/components/DailyPlanCard.tsx` — tarjeta del plan en el inicio
 - `src/lib/use-practice-state.ts` — estado del ejercicio en el cliente
 - `src/app/api/practice/[exercise]/…` — estado, `answer`, `reset`, `active`
-- `src/app/api/settings` — umbral de dominado
+- `src/app/api/settings` — umbral de dominado, voz y plan del día
 - `src/app/api/sentences/[exercise]/next`, `…/check` — frases y revisión
 - `src/app/api/qa/[exercise]/next`, `…/check` — pares de pregunta y respuesta
 - `scripts/` — datos (`verbs-a1.mjs`, `pronouns.mjs`, `sentences/level1-5.mjs`) y `init-db.mjs`

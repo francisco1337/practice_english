@@ -1,4 +1,13 @@
+import type { PoolConnection as RawPoolConnection } from "mysql2";
 import mysql from "mysql2/promise";
+
+/**
+ * Zona en la que corta el día de la app (racha, plan del día, repasos).
+ * El servidor de Aiven corre en UTC, así que sin esto CURDATE() cambia de día
+ * a las 18:00 hora de México y una práctica de la noche contaría para mañana.
+ * Se usa un desfase fijo porque México ya no tiene horario de verano.
+ */
+const TIME_ZONE = process.env.APP_TIME_ZONE ?? "-06:00";
 
 /**
  * Pool de conexiones a MySQL (Aiven).
@@ -10,7 +19,7 @@ function createPool() {
 
   const parsed = new URL(url);
 
-  return mysql.createPool({
+  const pool = mysql.createPool({
     host: parsed.hostname,
     port: Number(parsed.port || 3306),
     user: decodeURIComponent(parsed.username),
@@ -27,6 +36,23 @@ function createPool() {
     idleTimeout: 60_000,
     maxIdle: 2,
   });
+
+  // Se encola en la conexión recién creada, antes de cualquier consulta.
+  // El evento entrega la conexión con API de callbacks, aunque el tipo del
+  // pool de promesas diga lo contrario.
+  pool.on("connection", (conn) => {
+    (conn as unknown as RawPoolConnection).query(
+      "SET time_zone = ?",
+      [TIME_ZONE],
+      (error) => {
+        if (error) {
+          console.warn("No se pudo fijar la zona horaria:", error.message);
+        }
+      },
+    );
+  });
+
+  return pool;
 }
 
 const globalForDb = globalThis as unknown as { pool?: mysql.Pool };

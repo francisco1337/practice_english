@@ -93,6 +93,19 @@ const EXERCISES = [
   ["wh-dict", ["wh"]],
   ["prep-dict", ["prep"]],
   ["adv-dict", ["adv"]],
+  ["a1-speak", ["verb"]],
+  ["ph-speak", ["phrase"]],
+  ["qa-speak", ["qa"]],
+  ["pron-speak", ["pronoun"]],
+  ["tobe-speak", ["tobe"]],
+  ["art-speak", ["article"]],
+  ["ps-speak", ["present"]],
+  ["tp-speak", ["third"]],
+  ["th-speak", ["there"]],
+  ["pc-speak", ["cont"]],
+  ["wh-speak", ["wh"]],
+  ["prep-speak", ["prep"]],
+  ["adv-speak", ["adv"]],
 ];
 
 /** Los cuatro temas de expresiones comparten la misma forma de tabla. */
@@ -112,6 +125,9 @@ const conn = await mysql.createConnection({
   database: parsed.pathname.slice(1),
   ssl: { rejectUnauthorized: false },
 });
+
+// Misma zona que usa la app (src/lib/db.ts): el día corta a medianoche de México.
+await conn.query("SET time_zone = ?", [process.env.APP_TIME_ZONE ?? "-06:00"]);
 
 await conn.query(`
   CREATE TABLE IF NOT EXISTS verbs (
@@ -497,6 +513,33 @@ if (tieneVozBase) {
   await conn.query("ALTER TABLE settings DROP COLUMN speech_voice");
   console.log("settings.speech_voice eliminada (la voz se guarda por dispositivo)");
 }
+
+// Plan del día: interruptor y meta diaria de respuestas.
+const [[{ tienePlan }]] = await conn.query(
+  `SELECT COUNT(*) AS tienePlan FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'settings'
+      AND column_name = 'daily_plan_enabled'`,
+);
+if (!tienePlan) {
+  await conn.query(
+    `ALTER TABLE settings
+       ADD COLUMN daily_plan_enabled TINYINT(1) NOT NULL DEFAULT 1,
+       ADD COLUMN daily_goal SMALLINT UNSIGNED NOT NULL DEFAULT 40`,
+  );
+  console.log("settings: plan del día agregado");
+}
+
+// Actividad diaria: alimenta el plan del día, la racha y el histórico.
+await conn.query(`
+  CREATE TABLE IF NOT EXISTS activity (
+    day DATE NOT NULL,
+    exercise VARCHAR(32) NOT NULL,
+    answers INT UNSIGNED NOT NULL DEFAULT 0,
+    correct INT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, exercise),
+    KEY idx_activity_day (day)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`);
 
 // Repaso espaciado: cuándo se dominó, en qué etapa del repaso va y cuándo toca.
 const [[{ tieneRepaso }]] = await conn.query(

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import MicButton from "./MicButton";
 import SpeakButton from "./SpeakButton";
+import { useRecognition } from "@/lib/use-recognition";
 import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
@@ -31,6 +33,7 @@ export default function WriteExercise({
   panelTitle,
   direction,
   dictation = false,
+  speaking = false,
   initialState,
   initialItem,
 }: {
@@ -41,6 +44,8 @@ export default function WriteExercise({
   direction: Direction;
   /** En dictado no se muestra nada: se escucha el inglés y se escribe. */
   dictation?: boolean;
+  /** En pronunciar se muestra el inglés y se responde hablando. */
+  speaking?: boolean;
   initialState: PracticeState;
   initialItem: PracticeItem | null;
 }) {
@@ -90,31 +95,39 @@ export default function WriteExercise({
     [],
   );
 
-  const check = useCallback(async () => {
-    if (!item || result || !answer.trim()) return;
-    const correct = isWrittenAnswerCorrect(answer, item, direction);
+  const evaluar = useCallback(
+    async (texto: string) => {
+      if (!item || result || !texto.trim()) return;
+      const correct = isWrittenAnswerCorrect(texto, item, direction);
 
-    setResult({ correct });
-    setSession((s) => ({
-      correct: s.correct + (correct ? 1 : 0),
-      total: s.total + 1,
-      streak: correct ? s.streak + 1 : 0,
-    }));
+      setAnswer(texto);
+      setResult({ correct });
+      setSession((s) => ({
+        correct: s.correct + (correct ? 1 : 0),
+        total: s.total + 1,
+        streak: correct ? s.streak + 1 : 0,
+      }));
 
-    // Se pronuncia el inglés, sea el que se escribió o el que se mostró.
-    if (correct) speak(item.answer);
+      // Se pronuncia el inglés, sea el que se escribió o el que se mostró.
+      if (correct) speak(item.answer);
 
-    const [data] = await Promise.all([
-      registerAnswer(itemType, item.id, correct),
-      correct ? delay(AUTO_NEXT_MS) : Promise.resolve(),
-    ]);
+      const [data] = await Promise.all([
+        registerAnswer(itemType, item.id, correct),
+        correct ? delay(AUTO_NEXT_MS) : Promise.resolve(),
+      ]);
 
-    // Tras un acierto se avanza solo; tras un error el usuario da "Continuar".
-    if (correct) {
-      const fresh = data ? itemsOf(data, itemType) : items;
-      advance(fresh, item.id);
-    }
-  }, [item, result, answer, direction, registerAnswer, itemType, items, advance, speak]);
+      // Tras un acierto se avanza solo; tras un error el usuario da "Continuar".
+      if (correct) {
+        const fresh = data ? itemsOf(data, itemType) : items;
+        advance(fresh, item.id);
+      }
+    },
+    [item, result, direction, registerAnswer, itemType, items, advance, speak],
+  );
+
+  const check = useCallback(() => evaluar(answer), [evaluar, answer]);
+
+  const { status, interim, listen, stop } = useRecognition();
 
   const applyPanelAction = useCallback(
     async (action: Promise<PracticeState | null>) => {
@@ -179,14 +192,37 @@ export default function WriteExercise({
             </div>
 
             <p className="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {dictation
-                ? "Escucha y escríbelo en inglés"
-                : direction === "es-en"
-                  ? "Escríbelo en inglés"
-                  : "Escríbelo en español"}
+              {speaking
+                ? "Dilo en voz alta en inglés"
+                : dictation
+                  ? "Escucha y escríbelo en inglés"
+                  : direction === "es-en"
+                    ? "Escríbelo en inglés"
+                    : "Escríbelo en español"}
             </p>
 
-            {dictation ? (
+            {speaking ? (
+              <>
+                <p className="mt-1 text-center text-2xl font-bold tracking-tight sm:text-4xl">
+                  {item.answer}
+                </p>
+                <div className="mt-2 flex justify-center">
+                  <SpeakButton
+                    onSpeak={() => speak(item.answer)}
+                    label="Escuchar el modelo"
+                  />
+                </div>
+                <div className="mt-5">
+                  <MicButton
+                    status={status}
+                    interim={interim}
+                    disabled={result !== null}
+                    onListen={() => listen((texto) => void evaluar(texto))}
+                    onStop={stop}
+                  />
+                </div>
+              </>
+            ) : dictation ? (
               <div className="mt-4 flex flex-col items-center gap-3">
                 <button
                   type="button"
@@ -214,6 +250,19 @@ export default function WriteExercise({
               </p>
             )}
 
+            {speaking ? (
+              <div className="mt-6 flex justify-center">
+                {result && !result.correct && (
+                  <button
+                    type="button"
+                    onClick={() => advance(items, item.id)}
+                    className="rounded-xl bg-sky-600 px-5 py-3 font-medium text-white transition hover:bg-sky-700"
+                  >
+                    Siguiente
+                  </button>
+                )}
+              </div>
+            ) : (
             <form
               className="mt-7 flex flex-col gap-3 sm:flex-row"
               onSubmit={(e) => {
@@ -255,6 +304,7 @@ export default function WriteExercise({
                 {result ? "Siguiente" : "Revisar"}
               </button>
             </form>
+            )}
 
             <div className="mt-5 min-h-16">
               {result?.correct && (
