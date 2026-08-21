@@ -9,10 +9,12 @@ import {
   type Settings,
 } from "@/lib/practice";
 import {
+  resetSpeechEngine,
   setStoredVoice,
   useEnglishVoices,
   useSpeech,
   useSpeechAvailable,
+  useSpeechHealth,
   useStoredVoice,
 } from "@/lib/use-speech";
 
@@ -25,6 +27,8 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
   const [saved, setSaved] = useState(false);
 
   const available = useSpeechAvailable();
+  const health = useSpeechHealth();
+  const [reviving, setReviving] = useState(false);
   const voices = useEnglishVoices();
   const voice = useStoredVoice();
   // En esta pantalla se prueba la voz aunque la pronunciación esté apagada.
@@ -161,13 +165,55 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
               </span>
             </label>
 
-            <button
-              type="button"
-              onClick={() => speak(DEMO)}
-              className="mt-5 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-            >
-              🔊 Probar la voz
-            </button>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => speak(DEMO)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              >
+                🔊 Probar la voz
+              </button>
+
+              <button
+                type="button"
+                disabled={reviving}
+                onClick={() => {
+                  setReviving(true);
+                  void resetSpeechEngine().finally(() => setReviving(false));
+                }}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              >
+                {reviving ? "Probando…" : "Reiniciar el motor de voz"}
+              </button>
+
+              {health === "ok" && (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                  El navegador está reproduciendo bien.
+                </span>
+              )}
+            </div>
+
+            {health === "sin-respuesta" && (
+              <div className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p className="font-semibold">
+                  El navegador aceptó la orden pero no reprodujo nada.
+                </p>
+                <p className="mt-1">
+                  Le pasa a Chrome y a Safari: el motor de voz se traba y deja de
+                  sonar hasta que se reinicia. Prueba en este orden:
+                </p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>Pulsa «Reiniciar el motor de voz».</li>
+                  <li>Revisa que el volumen del sistema no esté en silencio.</li>
+                  <li>
+                    Cierra el navegador por completo y vuelve a abrirlo: el motor
+                    vive en el proceso del navegador, así que recargar la página
+                    no lo arregla.
+                  </li>
+                  <li>Si sigue, prueba otra voz de la lista.</li>
+                </ol>
+              </div>
+            )}
           </>
         )}
       </section>

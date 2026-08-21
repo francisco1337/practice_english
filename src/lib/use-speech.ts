@@ -147,19 +147,80 @@ export type SpeechOptions = {
   rate?: number;
 };
 
+/** Estado del motor de voz del navegador, para poder avisar cuando falla. */
+export type SpeechHealth = "desconocido" | "ok" | "sin-respuesta";
+
+/**
+ * La Web Speech API es frágil: si una locución se cancela justo cuando iba a
+ * empezar, el motor del navegador puede quedarse trabado (speaking = true para
+ * siempre) y dejar de reproducir hasta que se cierra el navegador. Por eso aquí
+ * NO se confía en synth.speaking: se lleva un estado propio y se evita cancelar
+ * salvo cuando de verdad estamos reproduciendo algo.
+ */
+let hablando = false;
+let salud: SpeechHealth = "desconocido";
+const saludListeners = new Set<() => void>();
+
+function setSalud(nueva: SpeechHealth) {
+  if (salud === nueva) return;
+  salud = nueva;
+  saludListeners.forEach((listener) => listener());
+}
+
+export function useSpeechHealth(): SpeechHealth {
+  return useSyncExternalStore(
+    (onChange) => {
+      saludListeners.add(onChange);
+      return () => saludListeners.delete(onChange);
+    },
+    () => salud,
+    () => "desconocido" as SpeechHealth,
+  );
+}
+
+/**
+ * Intenta despertar el motor: cancela lo pendiente, lo reanuda y prueba una
+ * locución corta. A veces lo recupera; si no, hay que reiniciar el navegador.
+ */
+export function resetSpeechEngine(): Promise<boolean> {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return Promise.resolve(false);
+  }
+  const synth = window.speechSynthesis;
+  hablando = false;
+  synth.cancel();
+  if (synth.paused) synth.resume();
+
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      const prueba = new SpeechSynthesisUtterance("Ready.");
+      const voice = resolveVoice(readStoredVoice());
+      if (voice) prueba.voice = voice;
+      prueba.lang = voice?.lang ?? "en-US";
+      let arrancó = false;
+      prueba.onstart = () => {
+        arrancó = true;
+        setSalud("ok");
+      };
+      prueba.onend = () => resolve(arrancó);
+      prueba.onerror = () => resolve(false);
+      synth.speak(prueba);
+      window.setTimeout(() => {
+        if (!arrancó) {
+          setSalud("sin-respuesta");
+          resolve(false);
+        }
+      }, 1500);
+    }, 250);
+  });
+}
+
 /**
  * Pronuncia texto en inglés con la voz del navegador (Web Speech API).
  * No requiere servicios externos y funciona igual en la laptop y en el celular.
  * En iOS la primera lectura necesita venir de un gesto del usuario: aquí siempre
- * ocurre justo después de responder, así que cumple.
+ * ocurre justo después de responder o de un clic, así que cumple.
  */
-/**
- * Estado propio de reproducción. La API del navegador es poco confiable:
- * speechSynthesis.speaking se queda en true si una locución se cancela en
- * carrera, y a partir de ahí deja de reproducir.
- */
-let hablando = false;
-
 export function useSpeech({ enabled, rate = 0.95 }: SpeechOptions) {
   return useCallback(
     (text: string) => {
@@ -173,23 +234,19 @@ export function useSpeech({ enabled, rate = 0.95 }: SpeechOptions) {
       // final le da entonación de cierre y evita que se pierda.
       const spoken = /[.?!]$/.test(clean) ? clean : `${clean}.`;
 
-      // La voz se resuelve al momento de hablar: así se usa la que el usuario
-      // acaba de elegir, sin esperar a que un efecto refresque nada.
-      const build = () => {
+      const lanzar = () => {
+        // La voz se resuelve al hablar: así se usa la que se acaba de elegir.
         const voice = resolveVoice(readStoredVoice());
         const utterance = new SpeechSynthesisUtterance(spoken);
         if (voice) utterance.voice = voice;
         utterance.lang = voice?.lang ?? "en-US";
         utterance.rate = rate;
-        return utterance;
-      };
 
-      const lanzar = (reintento: boolean) => {
-        const utterance = build();
         let arrancó = false;
         utterance.onstart = () => {
           arrancó = true;
           hablando = true;
+          setSalud("ok");
         };
         utterance.onend = () => {
           hablando = false;
@@ -197,28 +254,27 @@ export function useSpeech({ enabled, rate = 0.95 }: SpeechOptions) {
         utterance.onerror = () => {
           hablando = false;
         };
+
         if (synth.paused) synth.resume();
         synth.speak(utterance);
 
-        // Si no arrancó, el motor se trabó: se reinicia y se intenta una vez más.
-        if (!reintento) {
-          window.setTimeout(() => {
-            if (arrancó) return;
-            synth.cancel();
-            hablando = false;
-            window.setTimeout(() => lanzar(true), 120);
-          }, 400);
-        }
+        // Sin cancelar ni reintentar: solo se anota que el motor no respondió,
+        // para poder avisarlo en la configuración.
+        window.setTimeout(() => {
+          if (!arrancó) setSalud("sin-respuesta");
+          hablando = false;
+        }, 1500);
       };
 
-      if (synth.speaking || synth.pending || hablando) {
-        // cancel() es asíncrono: encolar de inmediato hace que el motor cancele
-        // también la nueva locución (error «canceled») y no se oiga nada.
-        synth.cancel();
+      if (hablando) {
+        // Solo se interrumpe lo que nosotros mismos estamos reproduciendo, y se
+        // espera un momento: cancel() es asíncrono y encolar de inmediato hace
+        // que el motor cancele también la locución nueva.
         hablando = false;
-        window.setTimeout(() => lanzar(false), 140);
+        synth.cancel();
+        window.setTimeout(lanzar, 160);
       } else {
-        lanzar(false);
+        lanzar();
       }
     },
     [enabled, rate],
