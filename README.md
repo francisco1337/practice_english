@@ -105,7 +105,7 @@ Cuatro temas de vocabulario y uso, cada uno con los ejercicios que ese tema real
 
 ## Examen de cierre de A1
 
-`/a1/examen` — 57 reactivos en 6 secciones que corresponden a los bloques del nivel:
+`/a1/examen` — 66 reactivos en 7 secciones: los 6 bloques del nivel más una de comprensión auditiva:
 
 | # | Sección | Tema | Contexto |
 |---|---|---|---|
@@ -115,9 +115,11 @@ Cuatro temas de vocabulario y uso, cada uno con los ejercicios que ese tema real
 | 4 | Hablar de acciones actuales | Presente continuo | Qué haces ahora |
 | 5 | Ubicar personas y objetos | There is/are y preposiciones | Casa y oficina |
 | 6 | Consolidar A1 | Repaso general | Conversación de 8 minutos |
+| 7 | Entender lo que oyes | Comprensión auditiva | Dictado |
 
-Cinco formatos: opción múltiple, escribir en inglés, escribir en español, completar el hueco y
-corregir una oración mal escrita. La sección 6 termina con cinco turnos de una conversación.
+Seis formatos: opción múltiple, escribir en inglés, escribir en español, completar el hueco,
+corregir una oración mal escrita y dictado. La sección 6 termina con cinco turnos de una
+conversación y la 7 son nueve oraciones que solo se escuchan.
 
 - **Sin retroalimentación durante el examen.** Al calificar se muestra el porcentaje global, el de
   cada sección, y la lista de errores con la respuesta correcta y la regla que se falló.
@@ -127,6 +129,91 @@ corregir una oración mal escrita. La sección 6 termina con cinco turnos de una
   dispositivo; los intentos terminados quedan en `exam_attempts` como historial.
 
 Tablas: `exam_questions` (banco, identificado por sección y posición), `exam_attempts`, `exam_answers`.
+
+## Lista de verbos (consulta)
+
+`/a1/verbos` — los 80 verbos con sus formas, para no depender de una hoja aparte:
+
+- **Dos listas separadas**: irregulares (`lead` → led/led y `show` → showed/**shown**) y regulares (78).
+- Columnas: verbo, español, tercera persona, `-ing`, pasado y participio.
+- Al tocar un verbo se abre su detalle con **un ejemplo en cada tiempo** (presente, presente
+  continuo, pasado, futuro y presente perfecto), los sinónimos en español, la nota de ortografía
+  cuando aplica (duplicar consonante, y → ies, -ie → y) y botones 🔊 para escucharlo.
+- **Casilla «ya lo estudié»** por verbo, guardada en `verbs.studied` (base de datos), con contador
+  y un filtro *Por estudiar* que deja solo los pendientes.
+- El buscador encuentra por inglés, español, sinónimos y por cualquier forma conjugada
+  (`led`, `shown`, `studying`).
+
+Las formas están en `scripts/verb-forms.mjs` y el script de carga valida las 78 regulares contra
+las reglas de ortografía, así que un dedazo no pasa desapercibido.
+
+## Dictado (comprensión auditiva)
+
+Se reproduce la oración en inglés y hay que escribirla. El texto **no se muestra** hasta responder;
+hay botón para repetir y otro para oírla más despacio (la velocidad configurada menos 0.25), y la
+primera reproducción arranca sola al aparecer cada reactivo.
+
+Hay dictado en todo lo que tiene contenido, reusando los bancos que ya existían:
+
+| Dónde | Ejercicio | Niveles |
+|---|---|---|
+| A1 · Verbos | los 80 verbos, uno por uno | sin niveles (se filtra en el panel) |
+| Gramática · Pronombres, To be, Artículos, Presente simple, Tercera persona, There is/are, Presente continuo | la frase completa | 5, los mismos del tema |
+| Gramática · Preguntas y respuestas | se escucha la pregunta y la respuesta, y se escriben las dos | 5 |
+| Expresiones · Palabras de pregunta, Preposiciones, Adverbios | la frase completa | 5 |
+| Expresiones · Frases útiles | la frase completa | sin niveles |
+| Examen | sección 7, «Entender lo que oyes»: 9 reactivos de dictado | — |
+
+El dictado suena aunque la pronunciación automática esté apagada en la configuración: ahí el audio
+es el ejercicio. En el dictado de pronombres no se muestra el verbo de la frase (sería media
+respuesta), y la calificación acepta lo de siempre: contracciones, mayúsculas y puntuación.
+
+## Pronunciación
+
+Con cada acierto se lee en voz alta el texto en inglés, con la voz del navegador
+(Web Speech API: sin servicios externos, sin llaves y funciona igual en el celular).
+En cada ejercicio queda además un botón para volver a escucharlo.
+
+Lo que se pronuncia es siempre el inglés, en cualquier dirección del ejercicio:
+
+| Ejercicio | Texto que se escucha |
+|---|---|
+| Relacionar / Escribir | el lado inglés del elemento |
+| Traducir (español → inglés) y Corregir | la frase correcta en inglés |
+| Traducir inverso (inglés → español) | la frase inglesa que se mostró |
+| Completar oración | la oración completa, con el hueco ya relleno |
+| Preguntar y responder | la pregunta y la respuesta en inglés |
+
+Se configura en `/configuracion` (enlace en el inicio):
+
+- **Interruptor** y **velocidad** se guardan en `settings` (base), así que valen para todos los dispositivos.
+- **La voz se guarda en `localStorage` de cada dispositivo**, porque cada sistema trae su propio
+  catálogo: Android usa las de Google, Windows las de Microsoft, iPhone y Mac las de Apple. El
+  selector muestra las voces en inglés que tenga ese equipo y suena una muestra al elegir.
+- Las voces de broma que macOS mezcla con las normales (Albert, Bells, Zarvox, Trinoids...) quedan
+  fuera de la lista y nunca se eligen solas; la selección automática prefiere las naturales
+  (Google US English, Samantha, Microsoft Aria, Daniel...).
+
+## Repaso espaciado
+
+Lo dominado no desaparece para siempre: entra a un ciclo de repasos a los **7, 30, 90, 180 y 365
+días** (`REVIEW_INTERVALS`).
+
+- Al alcanzar el umbral, el elemento queda dominado y se programa su primer repaso a 7 días.
+- Mientras no vence, no se pregunta (igual que antes).
+- Cuando vence, **vuelve solo al ejercicio** con el aviso «Repaso: lo dominaste antes, toca
+  confirmarlo». Si lo aciertas se aleja al siguiente intervalo; si lo fallas regresa a la práctica
+  normal desde cero (contador en 0, fuera del ciclo).
+- `/a1/repaso` resume qué toca hoy, qué viene esta semana y cuánto llevas dominado, con enlace
+  directo a cada ejercicio. No hace falta entrar: los repasos se cuelan solos donde corresponde.
+- En el panel de cada ejercicio, lo dominado muestra `↻ 12d` (días para el próximo repaso) o
+  `repaso` cuando ya toca.
+
+Columnas nuevas en `progress`: `mastered_at`, `review_stage`, `review_due`.
+
+`npm run db:init` además **sincroniza el invariante** «dominado = llegó al umbral vigente»: si el
+umbral cambió, lo que ya no califica vuelve a práctica y lo que sí, queda dominado con su repaso
+programado.
 
 ## Reglas del progreso
 
@@ -246,8 +333,12 @@ Los de pregunta y respuesta usan otro motor de dos campos con sus propios modos:
 
 ## Atajos de teclado
 
-- Relacionar: `1`–`4` para responder, `Enter` para continuar tras un error
-- Traducir: `Enter` revisa, y `Enter` otra vez pasa a la siguiente frase
+- **Relacionar: las flechas ↑ ← → ↓.** Las cuatro opciones se acomodan en cruz, así que cada una
+  queda en la dirección de su tecla (arriba ocupa el ancho completo, izquierda y derecha van a la
+  par, abajo cierra). `Enter` continúa tras un error.
+- Escribir, traducir y completar: `Enter` revisa, y `Enter` otra vez pasa a la siguiente.
+- En el examen las opciones se eligen con clic: son frases largas y una flecha mal dada costaría
+  el reactivo.
 
 ## Conexión a la base
 

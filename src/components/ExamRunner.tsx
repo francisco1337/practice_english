@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSpeech } from "@/lib/use-speech";
 import {
   EXAM_PASS_GLOBAL,
   EXAM_PASS_SECTION,
@@ -25,9 +26,11 @@ const percent = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
 export default function ExamRunner({
   initialState,
   history,
+  speechRate,
 }: {
   initialState: ExamState;
   history: History;
+  speechRate: number;
 }) {
   const [state, setState] = useState(initialState);
   const [given, setGiven] = useState("");
@@ -36,6 +39,17 @@ export default function ExamRunner({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const question = useMemo(() => nextExamQuestion(state), [state]);
+  // El audio de los reactivos de escucha suena aunque la pronunciación
+  // automática esté apagada: ahí el audio es la pregunta.
+  const speak = useSpeech({ enabled: true, rate: speechRate });
+  const speakSlow = useSpeech({
+    enabled: true,
+    rate: Math.max(0.5, speechRate - 0.25),
+  });
+
+  useEffect(() => {
+    if (question?.type === "listen") speak(question.prompt);
+  }, [question, speak]);
   const progress = examProgress(state);
   const section = question
     ? EXAM_SECTIONS.find((s) => s.number === question.section)
@@ -153,7 +167,9 @@ export default function ExamRunner({
                   {m.context && (
                     <p className="mt-1 text-sm italic text-slate-500">{m.context}</p>
                   )}
-                  <p className="mt-1 text-sm font-medium">{m.prompt}</p>
+                  <p className="mt-1 text-sm font-medium">
+                    {m.type === "listen" ? `Se leyó: ${m.prompt}` : m.prompt}
+                  </p>
                   <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">
                     Tu respuesta: {m.given || "(vacía)"}
                   </p>
@@ -316,15 +332,39 @@ export default function ExamRunner({
               {question.context}
             </p>
           )}
-          <p
-            className={`mt-2 text-center tracking-tight ${
-              question.type === "fix"
-                ? "text-lg font-semibold text-rose-700 sm:text-2xl dark:text-rose-300"
-                : "text-lg font-bold sm:text-2xl"
-            }`}
-          >
-            {question.prompt}
-          </p>
+          {question.type === "listen" ? (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={() => speak(question.prompt)}
+                className="flex h-20 w-20 items-center justify-center rounded-full bg-sky-600 text-3xl text-white transition hover:bg-sky-700"
+                aria-label="Escuchar la oración"
+                title="Escuchar la oración"
+              >
+                🔊
+              </button>
+              <button
+                type="button"
+                onClick={() => speakSlow(question.prompt)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              >
+                Más despacio
+              </button>
+              <p className="text-xs text-slate-500">
+                Escucha las veces que necesites y escribe la oración completa.
+              </p>
+            </div>
+          ) : (
+            <p
+              className={`mt-2 text-center tracking-tight ${
+                question.type === "fix"
+                  ? "text-lg font-semibold text-rose-700 sm:text-2xl dark:text-rose-300"
+                  : "text-lg font-bold sm:text-2xl"
+              }`}
+            >
+              {question.prompt}
+            </p>
+          )}
 
           {question.options ? (
             <div className="mt-7 grid grid-cols-1 gap-3">

@@ -1,6 +1,12 @@
 /** Tipos y reglas del examen de cierre de A1 (compartido servidor/cliente). */
 
-export type ExamQuestionType = "choice" | "write-en" | "write-es" | "cloze" | "fix";
+export type ExamQuestionType =
+  | "choice"
+  | "write-en"
+  | "write-es"
+  | "cloze"
+  | "fix"
+  | "listen";
 
 export type ExamSection = {
   number: number;
@@ -46,6 +52,12 @@ export const EXAM_SECTIONS: ExamSection[] = [
     topic: "Repaso general",
     context: "Conversación de 8 minutos",
   },
+  {
+    number: 7,
+    title: "Entender lo que oyes",
+    topic: "Comprensión auditiva",
+    context: "Dictado",
+  },
 ];
 
 /** Para sellar A1 no basta el global: cada sección tiene su propio mínimo. */
@@ -61,6 +73,7 @@ export const EXAM_TYPE_LABELS: Record<
   "write-es": { title: "Escríbelo en español", placeholder: "En español…" },
   cloze: { title: "Completa el hueco", placeholder: "Lo que falta…" },
   fix: { title: "Esta oración está mal: escríbela bien", placeholder: "La versión correcta…" },
+  listen: { title: "Escucha y escríbelo en inglés", placeholder: "What you hear…" },
 };
 
 /** Lo que ve el cliente mientras contesta: nunca incluye la respuesta. */

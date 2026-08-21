@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import SpeakButton from "./SpeakButton";
+import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
   expectedSide,
-  itemsOf,
+  isPracticable,
   isWrittenAnswerCorrect,
+  itemsOf,
   pickItem,
   shownSide,
   type Direction,
@@ -27,6 +30,7 @@ export default function WriteExercise({
   itemType,
   panelTitle,
   direction,
+  dictation = false,
   initialState,
   initialItem,
 }: {
@@ -35,6 +39,8 @@ export default function WriteExercise({
   panelTitle: string;
   /** es-en: se muestra el español y se escribe en inglés. en-es: al revés. */
   direction: Direction;
+  /** En dictado no se muestra nada: se escucha el inglés y se escribe. */
+  dictation?: boolean;
   initialState: PracticeState;
   initialItem: PracticeItem | null;
 }) {
@@ -55,8 +61,24 @@ export default function WriteExercise({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const items = itemsOf(state, itemType);
+  // En dictado el audio ES el ejercicio: suena aunque la pronunciación
+  // automática esté apagada en la configuración.
+  const speak = useSpeech({
+    enabled: dictation || state.settings.speechEnabled,
+    rate: state.settings.speechRate,
+  });
+  const speakSlow = useSpeech({
+    enabled: true,
+    rate: Math.max(0.5, state.settings.speechRate - 0.25),
+  });
   const expected = item ? expectedSide(item, direction) : "";
   const accepted = direction === "en-es" ? (item?.alternatives ?? []) : [];
+
+  // Cada elemento nuevo se reproduce solo.
+  useEffect(() => {
+    if (!dictation || !item) return;
+    speak(item.answer);
+  }, [dictation, item, speak]);
 
   const advance = useCallback(
     (from: PracticeItem[], previousId: number | null) => {
@@ -79,6 +101,9 @@ export default function WriteExercise({
       streak: correct ? s.streak + 1 : 0,
     }));
 
+    // Se pronuncia el inglés, sea el que se escribió o el que se mostró.
+    if (correct) speak(item.answer);
+
     const [data] = await Promise.all([
       registerAnswer(itemType, item.id, correct),
       correct ? delay(AUTO_NEXT_MS) : Promise.resolve(),
@@ -89,7 +114,7 @@ export default function WriteExercise({
       const fresh = data ? itemsOf(data, itemType) : items;
       advance(fresh, item.id);
     }
-  }, [item, result, answer, direction, registerAnswer, itemType, items, advance]);
+  }, [item, result, answer, direction, registerAnswer, itemType, items, advance, speak]);
 
   const applyPanelAction = useCallback(
     async (action: Promise<PracticeState | null>) => {
@@ -98,14 +123,14 @@ export default function WriteExercise({
 
       const fresh = itemsOf(data, itemType);
       const stillValid = fresh.some(
-        (v) => v.id === item?.id && v.active && !v.mastered,
+        (v) => v.id === item?.id && isPracticable(v),
       );
       if (!stillValid) advance(fresh, item?.id ?? null);
     },
     [itemType, item, advance],
   );
 
-  const pending = items.filter((v) => v.active && !v.mastered).length;
+  const pending = items.filter(isPracticable).length;
 
   return (
     <>
@@ -136,8 +161,16 @@ export default function WriteExercise({
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <span>
-                Aciertos de este elemento: {item.correctCount} /{" "}
-                {state.settings.masteryTarget}
+                {item.dueForReview ? (
+                  <span className="font-medium text-amber-700 dark:text-amber-300">
+                    Repaso: lo dominaste antes, toca confirmarlo
+                  </span>
+                ) : (
+                  <>
+                    Aciertos de este elemento: {item.correctCount} /{" "}
+                    {state.settings.masteryTarget}
+                  </>
+                )}
               </span>
               <span>
                 Sesión: {session.correct}/{session.total}
@@ -146,13 +179,40 @@ export default function WriteExercise({
             </div>
 
             <p className="mt-6 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {direction === "es-en"
-                ? "Escríbelo en inglés"
-                : "Escríbelo en español"}
+              {dictation
+                ? "Escucha y escríbelo en inglés"
+                : direction === "es-en"
+                  ? "Escríbelo en inglés"
+                  : "Escríbelo en español"}
             </p>
-            <p className="mt-1 text-center text-2xl font-bold tracking-tight sm:text-4xl">
-              {shownSide(item, direction)}
-            </p>
+
+            {dictation ? (
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => speak(item.answer)}
+                  className="flex h-20 w-20 items-center justify-center rounded-full bg-sky-600 text-3xl text-white transition hover:bg-sky-700"
+                  aria-label="Escuchar"
+                  title="Escuchar"
+                >
+                  🔊
+                </button>
+                <button
+                  type="button"
+                  onClick={() => speakSlow(item.answer)}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Más despacio
+                </button>
+                <p className="text-xs text-slate-500">
+                  {result ? item.answer : "Escucha y escribe lo que oyes."}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-center text-2xl font-bold tracking-tight sm:text-4xl">
+                {shownSide(item, direction)}
+              </p>
+            )}
 
             <form
               className="mt-7 flex flex-col gap-3 sm:flex-row"
@@ -173,7 +233,11 @@ export default function WriteExercise({
                 autoCapitalize="off"
                 spellCheck={false}
                 placeholder={
-                  direction === "es-en" ? "In English…" : "En español…"
+                  dictation
+                    ? "What you hear…"
+                    : direction === "es-en"
+                      ? "In English…"
+                      : "En español…"
                 }
                 className={`flex-1 rounded-xl border px-4 py-3 text-base outline-none sm:text-lg dark:bg-slate-800 ${
                   result === null
@@ -194,16 +258,22 @@ export default function WriteExercise({
 
             <div className="mt-5 min-h-16">
               {result?.correct && (
-                <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  ¡Correcto! {expected}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    ¡Correcto! {expected}
+                  </p>
+                  <SpeakButton onSpeak={() => speak(item.answer)} />
+                </div>
               )}
               {result && !result.correct && (
                 <div className="space-y-2">
-                  <p className="font-semibold text-rose-600 dark:text-rose-400">
-                    Era <span className="underline">{expected}</span> · el
-                    contador se reinició
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-rose-600 dark:text-rose-400">
+                      Era <span className="underline">{expected}</span> · el
+                      contador se reinició
+                    </p>
+                    <SpeakButton onSpeak={() => speak(item.answer)} />
+                  </div>
                   {accepted.length > 0 && (
                     <p className="text-sm text-slate-600 dark:text-slate-400">
                       También se acepta: {accepted.join(", ")}

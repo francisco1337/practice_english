@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import SpeakButton from "./SpeakButton";
+import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
   CATEGORY_LABELS,
@@ -70,6 +72,32 @@ export default function SentenceExercise({
 
   const mode = SENTENCE_MODES[exercise];
   const modeLabels = SENTENCE_MODE_LABELS[mode];
+  const isDictation = mode === "dictation";
+  // En dictado el audio ES el ejercicio, así que suena aunque la pronunciación
+  // automática esté apagada en la configuración.
+  const speak = useSpeech({
+    enabled: isDictation || state.settings.speechEnabled,
+    rate: state.settings.speechRate,
+  });
+  const speakSlow = useSpeech({
+    enabled: true,
+    rate: Math.max(0.5, state.settings.speechRate - 0.25),
+  });
+
+  /**
+   * El texto que se pronuncia es siempre la frase completa en inglés: la
+   * respuesta esperada, o la frase mostrada cuando se responde en español.
+   * En «completar» se rellena el hueco para escuchar la oración entera.
+   */
+  const englishOf = useCallback(
+    (expected: string) => {
+      if (!sentence) return expected;
+      if (mode === "en-es") return sentence.spanish;
+      if (mode === "cloze") return sentence.spanish.replace("___", expected);
+      return expected;
+    },
+    [sentence, mode],
+  );
 
   const loadSentence = useCallback(
     async (nextLevel: number, excludeId?: number) => {
@@ -91,6 +119,13 @@ export default function SentenceExercise({
     [exercise, setError],
   );
 
+  // Al llegar una frase nueva se reproduce sola; si el navegador lo bloquea
+  // (iOS pide un gesto la primera vez), queda el botón «Escuchar».
+  useEffect(() => {
+    if (!isDictation || !sentence) return;
+    speak(sentence.spanish);
+  }, [isDictation, sentence, speak]);
+
   const check = useCallback(async () => {
     if (!sentence || feedback || !answer.trim()) return;
     setChecking(true);
@@ -110,6 +145,7 @@ export default function SentenceExercise({
         item: data.item,
         given: answer,
       });
+      if (data.correct) speak(englishOf(data.expected));
       setSession((s) => ({
         correct: s.correct + (data.correct ? 1 : 0),
         total: s.total + 1,
@@ -120,7 +156,7 @@ export default function SentenceExercise({
     } finally {
       setChecking(false);
     }
-  }, [sentence, feedback, answer, exercise, setError, setState]);
+  }, [sentence, feedback, answer, exercise, setError, setState, speak, englishOf]);
 
   const changeLevel = useCallback(
     (next: TranslateLevel) => {
@@ -198,17 +234,43 @@ export default function SentenceExercise({
             <p className="mt-4 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
               {modeLabels.title}
             </p>
-            <p
-              className={`mt-2 text-center tracking-tight ${
-                mode === "cloze"
-                  ? "text-lg font-semibold sm:text-2xl"
-                  : mode === "fix"
-                    ? "text-lg font-semibold text-rose-700 sm:text-2xl dark:text-rose-300"
-                    : "text-xl font-bold sm:text-3xl"
-              }`}
-            >
-              {sentence.spanish}
-            </p>
+            {isDictation ? (
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => speak(sentence.spanish)}
+                  className="flex h-20 w-20 items-center justify-center rounded-full bg-sky-600 text-3xl text-white transition hover:bg-sky-700"
+                  aria-label="Escuchar la oración"
+                  title="Escuchar la oración"
+                >
+                  🔊
+                </button>
+                <button
+                  type="button"
+                  onClick={() => speakSlow(sentence.spanish)}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Más despacio
+                </button>
+                <p className="text-xs text-slate-500">
+                  {feedback
+                    ? sentence.spanish
+                    : "Escucha las veces que quieras y escribe lo que oyes."}
+                </p>
+              </div>
+            ) : (
+              <p
+                className={`mt-2 text-center tracking-tight ${
+                  mode === "cloze"
+                    ? "text-lg font-semibold sm:text-2xl"
+                    : mode === "fix"
+                      ? "text-lg font-semibold text-rose-700 sm:text-2xl dark:text-rose-300"
+                      : "text-xl font-bold sm:text-3xl"
+                }`}
+              >
+                {sentence.spanish}
+              </p>
+            )}
 
             <form
               className="mt-6 flex flex-col gap-3 sm:flex-row"
@@ -249,9 +311,14 @@ export default function SentenceExercise({
             {feedback && (
               <div className="mt-5">
                 {feedback.correct ? (
-                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    ¡Correcto! {feedback.expected}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      ¡Correcto! {feedback.expected}
+                    </p>
+                    <SpeakButton
+                      onSpeak={() => speak(englishOf(feedback.expected))}
+                    />
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <p className="font-semibold text-rose-600 dark:text-rose-400">
@@ -259,7 +326,10 @@ export default function SentenceExercise({
                       <span className="underline">{feedback.item.english}</span>{" "}
                       se reinició
                     </p>
-                    <p className="text-sm">
+                    <p className="flex flex-wrap items-center gap-2 text-sm">
+                      <SpeakButton
+                        onSpeak={() => speak(englishOf(feedback.expected))}
+                      />
                       <span className="text-slate-500">
                         {mode === "cloze" ? "Va: " : "Correcta: "}
                       </span>

@@ -65,6 +65,12 @@ export function usePracticeState(
     [exercise, post],
   );
 
+  const setSpeechEnabled = useCallback(
+    (speechEnabled: boolean) =>
+      post("/api/settings", { speechEnabled, exercise }),
+    [exercise, post],
+  );
+
   return {
     state,
     setState,
@@ -75,5 +81,6 @@ export function usePracticeState(
     setActive,
     resetProgress,
     setMasteryTarget,
+    setSpeechEnabled,
   };
 }

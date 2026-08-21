@@ -13,6 +13,7 @@ export const examSections = [
   [4, "Hablar de acciones actuales", "Presente continuo", "Qué haces ahora"],
   [5, "Ubicar personas y objetos", "There is/are y preposiciones", "Casa y oficina"],
   [6, "Consolidar A1", "Repaso general", "Conversación de 8 minutos"],
+  [7, "Entender lo que oyes", "Comprensión auditiva", "Dictado"],
 ];
 
 export const examQuestions = [
@@ -246,4 +247,34 @@ export const examQuestions = [
     ["Could you speak slower, please?", "Can you speak more slowly, please?",
      "Could you speak more slowly, please?"],
     "Frase fija para pedir que bajen la velocidad; con could suena más amable."],
+
+  // --- Sección 7: escuchar y escribir ---
+  // El tipo listen no muestra el texto: solo se reproduce.
+  [7, "listen", "He does not work here because he studies in the morning.", null, null,
+    "He does not work here because he studies in the morning.", [],
+    "Se oye «doesn't» contraído y la -s de studies; el does del negativo deja el verbo sin -s."],
+  [7, "listen", "There are three books on the table but there is not any pen.", null, null,
+    "There are three books on the table but there is not any pen.", [],
+    "Dos concordancias distintas en la misma frase: three books → are, any pen → is."],
+  [7, "listen", "She always prepares breakfast before she goes to work.", null, null,
+    "She always prepares breakfast before she goes to work.", [],
+    "always va antes del verbo, y breakfast va sin artículo."],
+  [7, "listen", "Do they visit their parents on Sundays?", null, null,
+    "Do they visit their parents on Sundays?", [],
+    "their (de ellos), no there; y on para días repetidos."],
+  [7, "listen", "My brother is planning a party for tomorrow.", null, null,
+    "My brother is planning a party for tomorrow.", [],
+    "plan → planning duplica la n; sujeto singular con is."],
+  [7, "listen", "Everybody in the office is working now.", null, null,
+    "Everybody in the office is working now.", [],
+    "everybody es singular: is working, y now va al final."],
+  [7, "listen", "How much water is there in the bottle?", null, null,
+    "How much water is there in the bottle?", [],
+    "how much con incontables, y el orden is there en la pregunta."],
+  [7, "listen", "I would like a coffee, please. Could you repeat that?", null, null,
+    "I would like a coffee, please. Could you repeat that?", [],
+    "Dos frases fijas seguidas; se oye «I'd like» contraído."],
+  [7, "listen", "There was not any money on the table yesterday.", null, null,
+    "There was not any money on the table yesterday.", [],
+    "Pasado de there is con incontable: there was not any money, y yesterday al final."],
 ];

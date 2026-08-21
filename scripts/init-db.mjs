@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import { verbsA1 } from "./verbs-a1.mjs";
+import { verbForms } from "./verb-forms.mjs";
 import { pronouns } from "./pronouns.mjs";
 import { tobeForms } from "./tobe-forms.mjs";
 import { tobeSentences } from "./sentences/tobe.mjs";
@@ -79,6 +80,19 @@ const EXERCISES = [
   ["ph-match", ["phrase"]],
   ["ph-match-rev", ["phrase"]],
   ["ph-write", ["phrase"]],
+  ["pron-dict", ["pronoun"]],
+  ["tobe-dict", ["tobe"]],
+  ["art-dict", ["article"]],
+  ["ps-dict", ["present"]],
+  ["tp-dict", ["third"]],
+  ["th-dict", ["there"]],
+  ["pc-dict", ["cont"]],
+  ["a1-dict", ["verb"]],
+  ["ph-dict", ["phrase"]],
+  ["qa-dict", ["qa"]],
+  ["wh-dict", ["wh"]],
+  ["prep-dict", ["prep"]],
+  ["adv-dict", ["adv"]],
 ];
 
 /** Los cuatro temas de expresiones comparten la misma forma de tabla. */
@@ -447,6 +461,72 @@ await conn.query(
   "INSERT INTO settings (id, mastery_target) VALUES (1, 10) ON DUPLICATE KEY UPDATE id = id",
 );
 
+// Interruptor de pronunciación, agregado después del esquema inicial.
+const [[{ tieneVoz }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneVoz FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'settings'
+      AND column_name = 'speech_enabled'`,
+);
+if (!tieneVoz) {
+  await conn.query(
+    "ALTER TABLE settings ADD COLUMN speech_enabled TINYINT(1) NOT NULL DEFAULT 1 AFTER mastery_target",
+  );
+  console.log("settings.speech_enabled agregada");
+}
+
+// Velocidad de lectura. La VOZ no va en la base: cada dispositivo ofrece voces
+// distintas (Apple, Google, Microsoft), así que se guarda en localStorage.
+const [[{ tieneRate }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneRate FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'settings'
+      AND column_name = 'speech_rate'`,
+);
+if (!tieneRate) {
+  await conn.query(
+    "ALTER TABLE settings ADD COLUMN speech_rate DECIMAL(3,2) NOT NULL DEFAULT 0.95 AFTER speech_enabled",
+  );
+  console.log("settings.speech_rate agregada");
+}
+
+const [[{ tieneVozBase }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneVozBase FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'settings'
+      AND column_name = 'speech_voice'`,
+);
+if (tieneVozBase) {
+  await conn.query("ALTER TABLE settings DROP COLUMN speech_voice");
+  console.log("settings.speech_voice eliminada (la voz se guarda por dispositivo)");
+}
+
+// Repaso espaciado: cuándo se dominó, en qué etapa del repaso va y cuándo toca.
+const [[{ tieneRepaso }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneRepaso FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'progress'
+      AND column_name = 'review_due'`,
+);
+if (!tieneRepaso) {
+  await conn.query(
+    `ALTER TABLE progress
+       ADD COLUMN mastered_at TIMESTAMP NULL,
+       ADD COLUMN review_stage TINYINT UNSIGNED NOT NULL DEFAULT 0,
+       ADD COLUMN review_due DATE NULL,
+       ADD KEY idx_progress_review (review_due)`,
+  );
+  console.log("progress: columnas de repaso espaciado agregadas");
+
+  // Lo que ya estaba dominado entra al ciclo desde hoy.
+  const [res] = await conn.query(
+    `UPDATE progress
+        SET mastered_at = COALESCE(mastered_at, updated_at),
+            review_stage = 1,
+            review_due = DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+      WHERE mastered = 1 AND review_due IS NULL`,
+  );
+  if (res.affectedRows > 0) {
+    console.log(`repaso: ${res.affectedRows} elementos dominados programados a 7 días`);
+  }
+}
+
 // Las claves de ejercicio crecieron (prep-translate-rev son 18 caracteres) y la
 // columna original de 16 las truncaba en silencio.
 await conn.query(
@@ -460,6 +540,36 @@ const [{ affectedRows: truncadas }] = await conn.query(
 );
 if (truncadas > 0) {
   console.log(`progress: ${truncadas} filas con clave inválida eliminadas`);
+}
+
+// Las formas conjugadas se agregaron después de la primera versión del esquema.
+const [[{ tieneFormas }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneFormas FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'verbs' AND column_name = 'third_person'`,
+);
+if (!tieneFormas) {
+  await conn.query(
+    `ALTER TABLE verbs
+       ADD COLUMN third_person VARCHAR(48) NULL,
+       ADD COLUMN gerund VARCHAR(48) NULL,
+       ADD COLUMN past VARCHAR(48) NULL,
+       ADD COLUMN participle VARCHAR(48) NULL,
+       ADD COLUMN irregular TINYINT(1) NOT NULL DEFAULT 0,
+       ADD COLUMN form_note VARCHAR(200) NULL`,
+  );
+  console.log("verbs: columnas de conjugación agregadas");
+}
+
+// Marca personal de «ya lo estudié» en la lista de consulta.
+const [[{ tieneEstudiado }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneEstudiado FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'verbs' AND column_name = 'studied'`,
+);
+if (!tieneEstudiado) {
+  await conn.query(
+    "ALTER TABLE verbs ADD COLUMN studied TINYINT(1) NOT NULL DEFAULT 0",
+  );
+  console.log("verbs.studied agregada");
 }
 
 // La columna spanish_alt se agregó después de la primera versión del esquema.
@@ -750,6 +860,75 @@ await seedExpression("phrase_items", phraseItems, null, null, null);
   );
   if (sobrantes > 0) console.log(`exam_questions: ${sobrantes} reactivos viejos eliminados`);
   console.log(`exam: ${filas.length} reactivos en ${examSections.length} secciones`);
+}
+
+// Conjugación de cada verbo (para la lista de consulta)
+{
+  const porVerbo = new Map(verbForms.map((f) => [f[0], f]));
+  const faltantes = verbsA1.filter(([english]) => !porVerbo.has(english));
+  if (faltantes.length > 0) {
+    throw new Error(`Sin formas: ${faltantes.map(([v]) => v).join(", ")}`);
+  }
+
+  await conn.query(
+    `INSERT INTO verbs (level, english, spanish, third_person, gerund, past, participle, irregular, form_note)
+       VALUES ?
+       ON DUPLICATE KEY UPDATE third_person = VALUES(third_person), gerund = VALUES(gerund),
+         past = VALUES(past), participle = VALUES(participle),
+         irregular = VALUES(irregular), form_note = VALUES(form_note)`,
+    [
+      verbsA1.map(([english, spanish]) => {
+        const [, third, gerund, past, participle, irregular, note] =
+          porVerbo.get(english);
+        return [
+          "A1",
+          english,
+          spanish,
+          third,
+          gerund,
+          past,
+          participle,
+          irregular ? 1 : 0,
+          note,
+        ];
+      }),
+    ],
+  );
+  console.log(
+    `verbos: conjugación de ${verbsA1.length} (irregulares: ${verbForms.filter((f) => f[5]).map((f) => f[0]).join(", ")})`,
+  );
+}
+
+// Invariante: «dominado» significa haber llegado al umbral vigente. Si el
+// umbral cambió (o quedó desalineado), se recalcula y se limpia el repaso de lo
+// que ya no califica.
+{
+  const [[{ mastery_target: umbral }]] = await conn.query(
+    "SELECT mastery_target FROM settings WHERE id = 1",
+  );
+  const [res] = await conn.query(
+    `UPDATE progress
+        SET mastered = 0, mastered_at = NULL, review_stage = 0, review_due = NULL
+      WHERE mastered = 1 AND correct_count < ?`,
+    [umbral],
+  );
+  if (res.affectedRows > 0) {
+    console.log(
+      `progress: ${res.affectedRows} elementos marcados como dominados sin llegar a ${umbral} aciertos; se devolvieron a práctica`,
+    );
+  }
+  const [res2] = await conn.query(
+    `UPDATE progress
+        SET mastered = 1,
+            mastered_at = COALESCE(mastered_at, updated_at),
+            review_stage = GREATEST(review_stage, 1),
+            review_due = COALESCE(review_due, DATE_ADD(CURDATE(), INTERVAL 7 DAY))
+      WHERE mastered = 0 AND correct_count >= ?`,
+    [umbral],
+  );
+  if (res2.affectedRows > 0) {
+    console.log(`progress: ${res2.affectedRows} elementos ya alcanzaban el umbral; quedaron dominados`);
+  }
 }
 
 const [verbRows] = await conn.query("SELECT id, english FROM verbs");

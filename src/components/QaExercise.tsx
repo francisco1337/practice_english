@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import SpeakButton from "./SpeakButton";
+import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
   CATEGORY_LABELS,
@@ -58,6 +60,24 @@ export default function QaExercise({
 
   const mode = QA_MODES[exercise];
   const labels = QA_MODE_LABELS[mode];
+  const isDictation = mode === "dictation";
+  const speak = useSpeech({
+    enabled: isDictation || state.settings.speechEnabled,
+    rate: state.settings.speechRate,
+  });
+  const speakSlow = useSpeech({
+    enabled: true,
+    rate: Math.max(0.5, state.settings.speechRate - 0.25),
+  });
+
+  /** El par en inglés: lo esperado, o lo mostrado si se responde en español. */
+  const englishPair = useCallback(
+    (question: string, answer: string) =>
+      mode === "en-es" && pair
+        ? `${pair.question} ${pair.answer}`
+        : `${question} ${answer}`,
+    [mode, pair],
+  );
 
   const loadPair = useCallback(
     async (nextLevel: number, excludeId?: number) => {
@@ -80,6 +100,11 @@ export default function QaExercise({
     [exercise, setError],
   );
 
+  useEffect(() => {
+    if (!isDictation || !pair) return;
+    speak(`${pair.question} ${pair.answer}`);
+  }, [isDictation, pair, speak]);
+
   const check = useCallback(async () => {
     if (!pair || feedback || !question.trim() || !answer.trim()) return;
     setChecking(true);
@@ -101,6 +126,9 @@ export default function QaExercise({
         item: data.item,
       });
       const both = data.questionCorrect && data.answerCorrect;
+      if (both) {
+        speak(englishPair(data.expectedQuestion, data.expectedAnswer));
+      }
       setSession((s) => ({
         correct: s.correct + (both ? 1 : 0),
         total: s.total + 1,
@@ -111,7 +139,7 @@ export default function QaExercise({
     } finally {
       setChecking(false);
     }
-  }, [pair, feedback, question, answer, exercise, setError, setState]);
+  }, [pair, feedback, question, answer, exercise, setError, setState, speak, englishPair]);
 
   const changeLevel = useCallback(
     (next: TranslateLevel) => {
@@ -185,13 +213,41 @@ export default function QaExercise({
             <p className="mt-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
               {labels.title}
             </p>
-            <p className="mt-2 text-center text-lg font-bold tracking-tight sm:text-2xl">
-              {pair.question}
-            </p>
-            {pair.answer && (
-              <p className="mt-1 text-center text-base font-semibold text-slate-600 sm:text-xl dark:text-slate-300">
-                {pair.answer}
-              </p>
+            {isDictation ? (
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => speak(`${pair.question} ${pair.answer}`)}
+                  className="flex h-20 w-20 items-center justify-center rounded-full bg-sky-600 text-3xl text-white transition hover:bg-sky-700"
+                  aria-label="Escuchar el par"
+                  title="Escuchar el par"
+                >
+                  🔊
+                </button>
+                <button
+                  type="button"
+                  onClick={() => speakSlow(`${pair.question} ${pair.answer}`)}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Más despacio
+                </button>
+                <p className="text-xs text-slate-500">
+                  {feedback
+                    ? `${pair.question} ${pair.answer}`
+                    : "Se escucha la pregunta y luego la respuesta."}
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-center text-lg font-bold tracking-tight sm:text-2xl">
+                  {pair.question}
+                </p>
+                {pair.answer && (
+                  <p className="mt-1 text-center text-base font-semibold text-slate-600 sm:text-xl dark:text-slate-300">
+                    {pair.answer}
+                  </p>
+                )}
+              </>
             )}
 
             <form
@@ -252,10 +308,22 @@ export default function QaExercise({
             {feedback && (
               <div className="mt-5 space-y-3">
                 {feedback.questionCorrect && feedback.answerCorrect ? (
-                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    ¡Correcto! {feedback.expectedQuestion}{" "}
-                    {feedback.expectedAnswer}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      ¡Correcto! {feedback.expectedQuestion}{" "}
+                      {feedback.expectedAnswer}
+                    </p>
+                    <SpeakButton
+                      onSpeak={() =>
+                        speak(
+                          englishPair(
+                            feedback.expectedQuestion,
+                            feedback.expectedAnswer,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
                 ) : (
                   <>
                     <p className="font-semibold text-rose-600 dark:text-rose-400">
@@ -266,6 +334,17 @@ export default function QaExercise({
                           : "Ninguna de las dos está bien"}{" "}
                       · el contador se reinició
                     </p>
+                    <SpeakButton
+                      onSpeak={() =>
+                        speak(
+                          englishPair(
+                            feedback.expectedQuestion,
+                            feedback.expectedAnswer,
+                          ),
+                        )
+                      }
+                      label="Escuchar el par correcto"
+                    />
                     <div className="space-y-1 text-sm">
                       <p>
                         <span className="text-slate-500">Pregunta: </span>

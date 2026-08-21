@@ -21,7 +21,7 @@ export default function ExerciseMenu({
             {exercise.description}
           </span>
           <span className="mt-4 text-sm font-medium text-sky-600 dark:text-sky-400">
-            Practicar →
+            {exercise.cta ?? "Practicar"} →
           </span>
         </Link>
       ))}

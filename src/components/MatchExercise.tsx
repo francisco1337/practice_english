@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ProgressPanel from "./ProgressPanel";
+import SpeakButton from "./SpeakButton";
+import { useSpeech } from "@/lib/use-speech";
 import { usePracticeState } from "@/lib/use-practice-state";
 import {
   buildQuestion,
   expectedSide,
+  isPracticable,
   itemsOf,
   shownSide,
   type Direction,
@@ -16,6 +19,15 @@ import {
 } from "@/lib/practice";
 
 const AUTO_NEXT_MS = 800;
+
+/**
+ * Las cuatro opciones se acomodan en cruz para que cada una quede en la
+ * dirección de su tecla: arriba, izquierda, derecha y abajo, en ese orden.
+ */
+const ARROW_ORDER = ["ArrowUp", "ArrowLeft", "ArrowRight", "ArrowDown"];
+const ARROW_GLYPHS = ["↑", "←", "→", "↓"];
+/** Arriba y abajo ocupan el ancho completo; izquierda y derecha van a la par. */
+const ARROW_SPANS = ["col-span-2", "col-span-1", "col-span-1", "col-span-2"];
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -51,6 +63,10 @@ export default function MatchExercise({
   const [session, setSession] = useState({ correct: 0, total: 0, streak: 0 });
 
   const items = itemsOf(state, itemType);
+  const speak = useSpeech({
+    enabled: state.settings.speechEnabled,
+    rate: state.settings.speechRate,
+  });
 
   const nextQuestion = useCallback(() => {
     setPicked(null);
@@ -69,6 +85,9 @@ export default function MatchExercise({
         streak: correct ? s.streak + 1 : 0,
       }));
 
+      // Siempre se pronuncia el lado inglés, en cualquier dirección.
+      if (correct) speak(question.item.answer);
+
       const [data] = await Promise.all([
         registerAnswer(itemType, question.item.id, correct),
         correct ? delay(AUTO_NEXT_MS) : Promise.resolve(),
@@ -81,7 +100,7 @@ export default function MatchExercise({
         setQuestion(buildQuestion(fresh, question.item.id, direction));
       }
     },
-    [question, picked, registerAnswer, itemType, items, direction],
+    [question, picked, registerAnswer, itemType, items, direction, speak],
   );
 
   /**
@@ -96,7 +115,7 @@ export default function MatchExercise({
       const fresh = itemsOf(data, itemType);
       const currentId = question?.item.id ?? null;
       const stillValid = fresh.some(
-        (v) => v.id === currentId && v.active && !v.mastered,
+        (v) => v.id === currentId && isPracticable(v),
       );
       if (!stillValid) {
         setPicked(null);
@@ -106,7 +125,8 @@ export default function MatchExercise({
     [itemType, question, direction],
   );
 
-  // Atajos: 1-4 para responder, Enter para continuar tras un error.
+  // Atajos: las flechas eligen la opción que está en esa dirección; Enter
+  // continúa después de un error.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (!question) return;
@@ -114,12 +134,10 @@ export default function MatchExercise({
         if (event.key === "Enter") nextQuestion();
         return;
       }
-      const index = Number(event.key) - 1;
-      if (
-        Number.isInteger(index) &&
-        index >= 0 &&
-        index < question.options.length
-      ) {
+      const index = ARROW_ORDER.indexOf(event.key);
+      if (index >= 0 && index < question.options.length) {
+        // Sin esto la página se desplaza al usar las flechas.
+        event.preventDefault();
         void answer(question.options[index]);
       }
     }
@@ -129,7 +147,7 @@ export default function MatchExercise({
 
   const answerText = question ? expectedSide(question.item, direction) : "";
   const isCorrect = picked !== null && picked === answerText;
-  const pending = items.filter((v) => v.active && !v.mastered).length;
+  const pending = items.filter(isPracticable).length;
 
   return (
     <>
@@ -160,8 +178,16 @@ export default function MatchExercise({
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <span>
-                Aciertos de este elemento: {question.item.correctCount} /{" "}
-                {state.settings.masteryTarget}
+                {question.item.dueForReview ? (
+                  <span className="font-medium text-amber-700 dark:text-amber-300">
+                    Repaso: lo dominaste antes, toca confirmarlo
+                  </span>
+                ) : (
+                  <>
+                    Aciertos de este elemento: {question.item.correctCount} /{" "}
+                    {state.settings.masteryTarget}
+                  </>
+                )}
               </span>
               <span>
                 Sesión: {session.correct}/{session.total}
@@ -176,7 +202,7 @@ export default function MatchExercise({
               {shownSide(question.item, direction)}
             </p>
 
-            <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mx-auto mt-8 grid max-w-xl grid-cols-2 gap-3">
               {question.options.map((option, index) => {
                 const isAnswer = option === answerText;
                 const chosen = option === picked;
@@ -201,10 +227,10 @@ export default function MatchExercise({
                     type="button"
                     onClick={() => void answer(option)}
                     disabled={picked !== null}
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-base font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:text-lg ${styles}`}
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-base font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:text-lg ${ARROW_SPANS[index] ?? "col-span-2"} ${styles}`}
                   >
-                    <span className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500 sm:flex dark:bg-slate-700 dark:text-slate-300">
-                      {index + 1}
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                      {ARROW_GLYPHS[index] ?? "•"}
                     </span>
                     {option}
                   </button>
@@ -212,11 +238,19 @@ export default function MatchExercise({
               })}
             </div>
 
+            <p className="mt-3 text-center text-xs text-slate-500">
+              Puedes responder con las flechas del teclado: cada opción está en
+              la dirección de su tecla.
+            </p>
+
             <div className="mt-6 flex min-h-12 flex-col items-center gap-3">
               {picked && isCorrect && (
-                <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  ¡Correcto!
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    ¡Correcto!
+                  </p>
+                  <SpeakButton onSpeak={() => speak(question.item.answer)} />
+                </div>
               )}
               {picked && !isCorrect && (
                 <>
@@ -229,6 +263,7 @@ export default function MatchExercise({
                       {question.item.hint}
                     </p>
                   )}
+                  <SpeakButton onSpeak={() => speak(question.item.answer)} />
                   <button
                     type="button"
                     onClick={nextQuestion}

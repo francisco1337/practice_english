@@ -196,12 +196,25 @@ export default function ProgressPanel({
             {showCounters && (
               <span
                 className={`shrink-0 text-xs tabular-nums ${
-                  item.mastered
-                    ? "font-semibold text-emerald-600 dark:text-emerald-400"
-                    : "text-slate-500"
+                  item.dueForReview
+                    ? "font-semibold text-amber-600 dark:text-amber-400"
+                    : item.mastered
+                      ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                      : "text-slate-500"
                 }`}
+                title={
+                  item.mastered && item.reviewInDays !== null
+                    ? item.dueForReview
+                      ? "Toca repasarlo"
+                      : `Próximo repaso en ${item.reviewInDays} días`
+                    : undefined
+                }
               >
-                {item.correctCount}/{masteryTarget}
+                {item.mastered && item.reviewInDays !== null
+                  ? item.dueForReview
+                    ? "repaso"
+                    : `↻ ${item.reviewInDays}d`
+                  : `${item.correctCount}/${masteryTarget}`}
               </span>
             )}
 

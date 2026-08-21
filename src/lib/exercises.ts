@@ -2,6 +2,8 @@ export type ExerciseCard = {
   href: string;
   name: string;
   description: string;
+  /** Texto del enlace; por omisión «Practicar». */
+  cta?: string;
 };
 
 export type ExerciseGroup = {
@@ -37,6 +39,19 @@ export const a1Groups: ExerciseGroup[] = [
         href: "/a1/escribir-inverso",
         name: "Escribir inverso",
         description: "Te damos el verbo en inglés y lo escribes en español.",
+      },
+      {
+        href: "/a1/dictado",
+        name: "Dictado",
+        description:
+          "Se pronuncia el verbo en inglés y tú lo escribes. Entrena el oído con los 80 verbos.",
+      },
+      {
+        href: "/a1/verbos",
+        name: "Lista de verbos",
+        description:
+          "Los 80 verbos con todas sus formas y un ejemplo en cada tiempo, separados en regulares e irregulares.",
+        cta: "Ver lista",
       },
     ],
   },
@@ -96,11 +111,18 @@ export const a1Groups: ExerciseGroup[] = [
   },
 ];
 
-/** Evaluación de cierre del nivel. */
+/** Evaluación y repaso del nivel. */
 export const examGroup: ExerciseGroup = {
   id: "evaluacion",
-  title: "Evaluación",
+  title: "Evaluación y repaso",
   items: [
+    {
+      href: "/a1/repaso",
+      name: "Repaso espaciado",
+      description:
+        "Lo dominado vuelve a los 7, 30, 90, 180 y 365 días. Aquí ves qué toca hoy y qué viene.",
+      cta: "Ver repasos",
+    },
     {
       href: "/a1/examen",
       name: "Examen de cierre A1",
@@ -158,7 +180,12 @@ export const whExercises: ExerciseCard[] = [
     name: "Traducir pregunta",
     description: "Lees la pregunta en español y la escribes completa en inglés.",
   },
-];
+  {
+    href: "/a1/preguntas/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la pregunta en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const prepExercises: ExerciseCard[] = [
   {
@@ -176,7 +203,12 @@ export const prepExercises: ExerciseCard[] = [
     name: "Traducir frase inverso",
     description: "Lees la frase en inglés y la escribes en español.",
   },
-];
+  {
+    href: "/a1/preposiciones/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const advExercises: ExerciseCard[] = [
   {
@@ -195,7 +227,12 @@ export const advExercises: ExerciseCard[] = [
     description:
       "Te damos la frase con el adverbio mal puesto y tú la escribes bien.",
   },
-];
+  {
+    href: "/a1/adverbios/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const phraseExercises: ExerciseCard[] = [
   {
@@ -213,7 +250,12 @@ export const phraseExercises: ExerciseCard[] = [
     name: "Escribir",
     description: "Te damos la frase en español y la escribes completa en inglés.",
   },
-];
+  {
+    href: "/a1/frases-utiles/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase completa en inglés y la escribes.",
+  },];
 
 export const pronounExercises: ExerciseCard[] = [
   {
@@ -234,7 +276,12 @@ export const pronounExercises: ExerciseCard[] = [
     description:
       "Cinco niveles de dificultad: lees la frase en español y la escribes en inglés.",
   },
-];
+  {
+    href: "/a1/pronombres/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const tobeExercises: ExerciseCard[] = [
   {
@@ -254,7 +301,12 @@ export const tobeExercises: ExerciseCard[] = [
     description:
       "Cinco niveles: lees la frase en español y la escribes en inglés.",
   },
-];
+  {
+    href: "/a1/to-be/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const articleExercises: ExerciseCard[] = [
   {
@@ -274,7 +326,12 @@ export const articleExercises: ExerciseCard[] = [
     description:
       "Cinco niveles: lees la frase en español y la escribes en inglés.",
   },
-];
+  {
+    href: "/a1/articulos/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const presentExercises: ExerciseCard[] = [
   {
@@ -294,7 +351,12 @@ export const presentExercises: ExerciseCard[] = [
     description:
       "La oración viene con un hueco y tú escribes la forma que falta.",
   },
-];
+  {
+    href: "/a1/presente-simple/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const qaExercises: ExerciseCard[] = [
   {
@@ -314,7 +376,12 @@ export const qaExercises: ExerciseCard[] = [
     description:
       "Te decimos qué preguntar y qué contestar; tú armas la pregunta y la respuesta en inglés.",
   },
-];
+  {
+    href: "/a1/preguntas-respuestas/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la pregunta y la respuesta, y escribes las dos. Cinco niveles.",
+  },];
 
 export const thirdExercises: ExerciseCard[] = [
   {
@@ -334,7 +401,12 @@ export const thirdExercises: ExerciseCard[] = [
     description:
       "Te damos la frase mal escrita en inglés y tú la escribes correctamente.",
   },
-];
+  {
+    href: "/a1/tercera-persona/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const thereExercises: ExerciseCard[] = [
   {
@@ -354,7 +426,12 @@ export const thereExercises: ExerciseCard[] = [
     description:
       "Te damos la frase mal escrita en inglés y tú la escribes correctamente.",
   },
-];
+  {
+    href: "/a1/there-is-are/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];
 
 export const contExercises: ExerciseCard[] = [
   {
@@ -374,4 +451,9 @@ export const contExercises: ExerciseCard[] = [
     description:
       "Te damos la frase mal escrita en inglés y tú la escribes correctamente.",
   },
-];
+  {
+    href: "/a1/presente-continuo/dictado",
+    name: "Dictado",
+    description:
+      "Escuchas la frase en inglés y la escribes. Cinco niveles.",
+  },];

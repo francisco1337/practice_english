@@ -40,7 +40,20 @@ export type ExerciseKey =
   | "adv-fix"
   | "ph-match"
   | "ph-match-rev"
-  | "ph-write";
+  | "ph-write"
+  | "pron-dict"
+  | "tobe-dict"
+  | "art-dict"
+  | "ps-dict"
+  | "tp-dict"
+  | "th-dict"
+  | "pc-dict"
+  | "a1-dict"
+  | "ph-dict"
+  | "qa-dict"
+  | "wh-dict"
+  | "prep-dict"
+  | "adv-dict";
 
 export type ItemType =
   | "verb"
@@ -98,6 +111,19 @@ export const EXERCISE_ITEM_TYPES: Record<ExerciseKey, ItemType[]> = {
   "ph-match": ["phrase"],
   "ph-match-rev": ["phrase"],
   "ph-write": ["phrase"],
+  "pron-dict": ["pronoun"],
+  "tobe-dict": ["tobe"],
+  "art-dict": ["article"],
+  "ps-dict": ["present"],
+  "tp-dict": ["third"],
+  "th-dict": ["there"],
+  "pc-dict": ["cont"],
+  "a1-dict": ["verb"],
+  "ph-dict": ["phrase"],
+  "qa-dict": ["qa"],
+  "wh-dict": ["wh"],
+  "prep-dict": ["prep"],
+  "adv-dict": ["adv"],
 };
 
 export function isExerciseKey(value: string): value is ExerciseKey {
@@ -122,9 +148,28 @@ export type PracticeItem = {
   wrongCount: number;
   mastered: boolean;
   active: boolean;
+  /** Dominado pero le toca repaso hoy: vuelve a preguntarse. */
+  dueForReview: boolean;
+  /** Días que faltan para el próximo repaso (null si no está dominado). */
+  reviewInDays: number | null;
 };
 
-export type Settings = { masteryTarget: number };
+/**
+ * Repaso espaciado: al dominar algo se programa a 7 días; cada repaso acertado
+ * lo aleja, y un error lo regresa a la práctica normal.
+ */
+export const REVIEW_INTERVALS = [7, 30, 90, 180, 365];
+
+export type Settings = {
+  masteryTarget: number;
+  /** Si al acertar se pronuncia el texto en inglés. */
+  speechEnabled: boolean;
+  /** Velocidad de lectura (0.6 a 1.3). La voz se guarda por dispositivo. */
+  speechRate: number;
+};
+
+export const SPEECH_RATE_MIN = 0.6;
+export const SPEECH_RATE_MAX = 1.3;
 
 export type PracticeState = {
   exercise: ExerciseKey;
@@ -150,7 +195,7 @@ export type TranslateLevel = (typeof TRANSLATE_LEVELS)[number];
  * Modo de un ejercicio de frases: traducir al inglés, traducir al español o
  * completar el hueco de una oración en inglés.
  */
-export type SentenceMode = "es-en" | "en-es" | "cloze" | "fix";
+export type SentenceMode = "es-en" | "en-es" | "cloze" | "fix" | "dictation";
 
 export type SentenceExerciseKey =
   | "translate"
@@ -174,7 +219,17 @@ export type SentenceExerciseKey =
   | "prep-translate"
   | "prep-translate-rev"
   | "adv-translate"
-  | "adv-fix";
+  | "adv-fix"
+  | "pron-dict"
+  | "tobe-dict"
+  | "art-dict"
+  | "ps-dict"
+  | "tp-dict"
+  | "th-dict"
+  | "pc-dict"
+  | "wh-dict"
+  | "prep-dict"
+  | "adv-dict";
 
 export const SENTENCE_MODES: Record<SentenceExerciseKey, SentenceMode> = {
   translate: "es-en",
@@ -199,6 +254,16 @@ export const SENTENCE_MODES: Record<SentenceExerciseKey, SentenceMode> = {
   "prep-translate-rev": "en-es",
   "adv-translate": "es-en",
   "adv-fix": "fix",
+  "pron-dict": "dictation",
+  "tobe-dict": "dictation",
+  "art-dict": "dictation",
+  "ps-dict": "dictation",
+  "tp-dict": "dictation",
+  "th-dict": "dictation",
+  "pc-dict": "dictation",
+  "wh-dict": "dictation",
+  "prep-dict": "dictation",
+  "adv-dict": "dictation",
 };
 
 export function isSentenceExerciseKey(
@@ -217,6 +282,10 @@ export const SENTENCE_MODE_LABELS: Record<
   fix: {
     title: "Esta oración está mal: escríbela bien",
     placeholder: "La versión correcta…",
+  },
+  dictation: {
+    title: "Escucha y escríbelo en inglés",
+    placeholder: "What you hear…",
   },
 };
 
@@ -320,6 +389,34 @@ export const SENTENCE_LEVEL_LABELS: Record<
   "prep-translate-rev": PREP_LEVEL_LABELS,
   "adv-translate": ADV_LEVEL_LABELS,
   "adv-fix": ADV_LEVEL_LABELS,
+  "pron-dict": {
+    1: "Presente simple, frases cortas",
+    2: "Negativo e interrogativo, pronombres de objeto",
+    3: "Pasado simple, adjetivos posesivos",
+    4: "Futuro y presente continuo, pronombres posesivos",
+    5: "Dos cláusulas con conectores",
+  },
+  "tobe-dict": {
+    1: "Presente afirmativo: am, is, are",
+    2: "Presente negativo y preguntas",
+    3: "Pasado: was, were",
+    4: "Preguntas en pasado, futuro y there is/are",
+    5: "Dos cláusulas y presente continuo",
+  },
+  "art-dict": {
+    1: "a + sonido de consonante",
+    2: "an + sonido de vocal",
+    3: "the en singular y plural",
+    4: "Sin artículo",
+    5: "Dos cláusulas mezclando todo",
+  },
+  "ps-dict": PRESENT_LEVEL_LABELS,
+  "tp-dict": THIRD_LEVEL_LABELS,
+  "th-dict": THERE_LEVEL_LABELS,
+  "pc-dict": CONT_LEVEL_LABELS,
+  "wh-dict": WH_LEVEL_LABELS,
+  "prep-dict": PREP_LEVEL_LABELS,
+  "adv-dict": ADV_LEVEL_LABELS,
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -383,11 +480,16 @@ export function expectedSide(item: PracticeItem, direction: Direction): string {
 }
 
 /** Elige un elemento activo y no dominado, evitando repetir el anterior. */
+/** Lo practicable: lo pendiente y lo dominado que ya toca repasar. */
+export function isPracticable(item: PracticeItem): boolean {
+  return item.active && (!item.mastered || item.dueForReview);
+}
+
 export function pickItem(
   items: PracticeItem[],
   previousId: number | null,
 ): PracticeItem | null {
-  const pool = items.filter((v) => v.active && !v.mastered);
+  const pool = items.filter(isPracticable);
   if (pool.length === 0) return null;
   const candidates =
     pool.length > 1 ? pool.filter((v) => v.id !== previousId) : pool;
@@ -627,14 +729,19 @@ export function diffWords(given: string, expected: string) {
  * traducirlo al español, o armar la pregunta y la respuesta a partir de una
  * consigna en español.
  */
-export type QaMode = "es-en" | "en-es" | "cue";
+export type QaMode = "es-en" | "en-es" | "cue" | "dictation";
 
-export type QaExerciseKey = "qa-translate" | "qa-translate-rev" | "qa-ask";
+export type QaExerciseKey =
+  | "qa-translate"
+  | "qa-translate-rev"
+  | "qa-ask"
+  | "qa-dict";
 
 export const QA_MODES: Record<QaExerciseKey, QaMode> = {
   "qa-translate": "es-en",
   "qa-translate-rev": "en-es",
   "qa-ask": "cue",
+  "qa-dict": "dictation",
 };
 
 export function isQaExerciseKey(value: string): value is QaExerciseKey {
@@ -662,6 +769,12 @@ export const QA_MODE_LABELS: Record<
     questionLabel: "Pregunta",
     answerLabel: "Respuesta",
     placeholder: "In English…",
+  },
+  dictation: {
+    title: "Escucha la pregunta y la respuesta, y escríbelas",
+    questionLabel: "Pregunta que oíste",
+    answerLabel: "Respuesta que oíste",
+    placeholder: "What you hear…",
   },
 };
 

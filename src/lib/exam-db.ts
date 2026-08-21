@@ -48,6 +48,8 @@ function toClientQuestion(row: QuestionRow): ExamQuestion {
     id: row.id,
     section: row.section,
     position: row.position,
+    // En los reactivos de escucha el texto viaja solo para poder pronunciarlo;
+    // la interfaz no lo muestra hasta que se califica.
     type: row.type,
     prompt: row.prompt,
     context: row.context,
