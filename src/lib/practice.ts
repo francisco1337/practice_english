@@ -910,6 +910,12 @@ export type QaPrompt = {
   /** La respuesta que se muestra; vacía en modo cue. */
   answer: string;
   itemId: number;
+  /**
+   * Sujeto que toca usar en cada parte, cuando hay que escribir el inglés: el
+   * español no siempre dice quién es («¿Trabaja aquí?» puede ser él o usted) y
+   * el reto del ejercicio es elegir do o does, no adivinar el pronombre.
+   */
+  subject?: { question: string; answer: string };
 };
 
 export type QaResult = {

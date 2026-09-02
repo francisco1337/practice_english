@@ -875,6 +875,8 @@ type QaRow = RowDataPacket & {
   english_question: string;
   english_answer: string;
   cue: string;
+  question_subject: string;
+  answer_subject: string;
   item_id: number;
   item_english: string;
   item_spanish: string;
@@ -884,7 +886,8 @@ type QaRow = RowDataPacket & {
 
 const QA_SELECT = `
   SELECT p.id, p.level, p.spanish_question, p.spanish_answer,
-         p.english_question, p.english_answer, p.cue, p.form_id AS item_id,
+         p.english_question, p.english_answer, p.cue,
+         p.question_subject, p.answer_subject, p.form_id AS item_id,
          n.english AS item_english, n.spanish AS item_spanish,
          n.category AS item_category, n.hint AS item_hint
     FROM qa_pairs p
@@ -894,12 +897,18 @@ const QA_SELECT = `
 /** Lo que se muestra y lo que se espera, según el modo del ejercicio. */
 function qaPromptAndAnswers(row: QaRow, exercise: QaExerciseKey) {
   const mode = QA_MODES[exercise];
+  // Solo hace falta la pista cuando el inglés no está a la vista.
+  const subject =
+    (mode === "es-en" || mode === "cue") && row.question_subject
+      ? { question: row.question_subject, answer: row.answer_subject }
+      : undefined;
   if (mode === "en-es") {
     return {
       question: row.english_question,
       answer: row.english_answer,
       expectedQuestion: row.spanish_question,
       expectedAnswer: row.spanish_answer,
+      subject,
     };
   }
   if (mode === "cue") {
@@ -908,6 +917,7 @@ function qaPromptAndAnswers(row: QaRow, exercise: QaExerciseKey) {
       answer: "",
       expectedQuestion: row.english_question,
       expectedAnswer: row.english_answer,
+      subject,
     };
   }
   // En dictado el texto viaja para poder pronunciarlo; la interfaz lo oculta.
@@ -917,6 +927,7 @@ function qaPromptAndAnswers(row: QaRow, exercise: QaExerciseKey) {
       answer: row.english_answer,
       expectedQuestion: row.english_question,
       expectedAnswer: row.english_answer,
+      subject,
     };
   }
   return {
@@ -924,6 +935,7 @@ function qaPromptAndAnswers(row: QaRow, exercise: QaExerciseKey) {
     answer: row.spanish_answer,
     expectedQuestion: row.english_question,
     expectedAnswer: row.english_answer,
+    subject,
   };
 }
 
@@ -948,8 +960,15 @@ export async function getNextQaPair(
   const row = rows[0];
   if (!row) return null;
 
-  const { question, answer } = qaPromptAndAnswers(row, exercise);
-  return { id: row.id, level: row.level, question, answer, itemId: row.item_id };
+  const { question, answer, subject } = qaPromptAndAnswers(row, exercise);
+  return {
+    id: row.id,
+    level: row.level,
+    question,
+    answer,
+    itemId: row.item_id,
+    subject,
+  };
 }
 
 /**
@@ -1076,6 +1095,67 @@ export type ReviewRow = {
   /** Días para el repaso más cercano que aún no vence. */
   nextInDays: number | null;
 };
+
+export type ExerciseStats = {
+  /** Elementos del catálogo de ese ejercicio. */
+  total: number;
+  mastered: number;
+  /** Dominados con el repaso ya vencido. */
+  due: number;
+  /** Activos que todavía no se dominan. */
+  pending: number;
+};
+
+/**
+ * Conteos por ejercicio, contando solo su tipo de elemento principal: en
+ * «traducir frase», por ejemplo, los verbos son filtro y no progreso.
+ */
+export async function getStatsByExercise(): Promise<
+  Map<ExerciseKey, ExerciseStats>
+> {
+  const rows = await query<
+    (RowDataPacket & {
+      exercise: ExerciseKey;
+      item_type: ItemType;
+      total: number;
+      mastered: number;
+      due: number;
+      pending: number;
+    })[]
+  >(
+    `SELECT exercise, item_type, COUNT(*) total, SUM(mastered) mastered,
+            SUM(mastered = 1 AND review_due <= CURDATE()) due,
+            SUM(active = 1 AND mastered = 0) pending
+       FROM progress
+      GROUP BY exercise, item_type`,
+  );
+
+  const porEjercicio = new Map<ExerciseKey, ExerciseStats>();
+  for (const row of rows) {
+    if (EXERCISE_ITEM_TYPES[row.exercise]?.[0] !== row.item_type) continue;
+    porEjercicio.set(row.exercise, {
+      total: Number(row.total),
+      mastered: Number(row.mastered),
+      due: Number(row.due),
+      pending: Number(row.pending),
+    });
+  }
+  return porEjercicio;
+}
+
+/** Cuántos verbos llevas marcados como estudiados en la lista. */
+export async function getVerbStudiedCount(): Promise<{
+  studied: number;
+  total: number;
+}> {
+  const rows = await query<
+    (RowDataPacket & { studied: number; total: number })[]
+  >("SELECT SUM(studied) studied, COUNT(*) total FROM verbs");
+  return {
+    studied: Number(rows[0]?.studied ?? 0),
+    total: Number(rows[0]?.total ?? 0),
+  };
+}
 
 /** Qué toca repasar, por ejercicio. */
 export async function getReviewSummary(): Promise<ReviewRow[]> {

@@ -275,6 +275,25 @@ Detalles que importan:
 - El umbral es global: se cambia desde cualquier panel y aplica a todos los ejercicios.
 - Todo se puede activar/desactivar para elegir qué practicar, y reiniciar (uno o todos).
 
+## Porcentaje de avance
+
+Cada card del menú lleva su propio porcentaje con barra, y el título de `/a1` el de todo el nivel
+(`246 de 2075 elementos dominados`, por ejemplo). Se calcula con `mastered / total` sobre el tipo
+de elemento principal de cada ejercicio, así que un ejercicio de frases cuenta pronombres o
+artículos, no los verbos que solo son filtro.
+
+- **Card de ejercicio** (`/a1/pronombres/relacionar`): el avance de ese ejercicio.
+- **Card de tema** (`/a1/pronombres`): la suma de sus cinco ejercicios.
+- **Lista de verbos**: cuántos llevas marcados como estudiados.
+- **Examen**: el porcentaje de tu mejor intento terminado.
+- **Teoría** y **Repaso espaciado** no llevan barra: no tienen progreso propio.
+- Al 100% la barra se pinta en verde.
+
+El mapeo card → ejercicio sale de las rutas de `EXERCISE_INFO`, sin datos duplicados: coincidencia
+exacta para un ejercicio y por prefijo (`/a1/pronombres/…`) para un tema. `src/lib/menu-progress.ts`
+lo consulta una sola vez por petición (`cache`) y usa `connection()` para que el avance se lea en
+cada visita en lugar de quedarse congelado en el build.
+
 ## Secciones
 
 Todo el contenido vive dentro del nivel (`/a1`), agrupado por tema: **Verbos** y **Gramática**.
@@ -353,6 +372,19 @@ Todo el contenido vive dentro del nivel (`/a1`), agrupado por tema: **Verbos** y
   - Son dos campos (pregunta y respuesta) y **cuenta como acierto solo si las dos están bien**;
     la retroalimentación dice cuál falló. En *Preguntar y responder* solo se ve la consigna en
     español («Pregunta si él trabaja aquí. Contesta que no.») y hay que armar las dos frases.
+  - **El sujeto viene indicado** («Pregunta con *the car*» · «Contesta con *it*»). El español deja
+    el sujeto implícito («¿Funciona el coche?» → *Does the car work?*, contestando *Yes, it does.*)
+    y además el sujeto cambia entre pregunta y respuesta (*Do I need a uniform?* → *Yes, you do.*).
+    Aquí lo que se practica es acertar do o does, no adivinar el pronombre, así que la pista se
+    muestra en los modos donde hay que escribir el inglés partiendo del español (*Traducir el par*
+    y *Preguntar y responder*), y **no** en traducir inverso, dictado ni pronunciar, donde el
+    inglés ya está a la vista.
+  - Los sujetos se guardan en `qa_pairs.question_subject` / `answer_subject`. `scripts/qa-subjects.mjs`
+    los deduce del inglés al sembrar (el sujeto va entre el auxiliar y el primer verbo o adverbio) y
+    **truena si no puede leerlo**, para que un par nuevo no quede sin pista en silencio; en ese caso
+    se escribe a mano al final de la fila como `"the car|it"`. En los demás temas no hace falta:
+    sus frases en español siempre dicen el sujeto (revisado sobre las 337 frases de pronombres y
+    las de presente simple, tercera persona, continuo y to be).
 
 La revisión de la respuesta escrita ignora mayúsculas, puntuación y espacios extra, y acepta
 contracciones (`doesn't` = `does not`, `I'm` = `I am`…) y `will` donde la frase usa `going to`.
@@ -376,6 +408,7 @@ Los de pregunta y respuesta usan otro motor de dos campos con sus propios modos:
 - `src/components/ProgressPanel.tsx` — panel de progreso y filtros
 - `src/lib/practice.ts` — tipos, armado de preguntas y verificación de respuestas (compartido)
 - `src/lib/practice-db.ts` — consultas a MySQL
+- `src/lib/menu-progress.ts` — porcentajes de avance del menú (por card y del nivel completo)
 - `src/lib/plan.ts` — armado del plan del día (repasos, lo más flojo, oído y boca) y la racha
 - `src/components/DailyPlanCard.tsx` — tarjeta del plan en el inicio
 - `src/lib/use-practice-state.ts` — estado del ejercicio en el cliente

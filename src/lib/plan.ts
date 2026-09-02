@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 import { query } from "./db";
 import { EXERCISE_ITEM_TYPES, type ExerciseKey } from "./practice";
-import { getSettings } from "./practice-db";
+import { getSettings, getStatsByExercise } from "./practice-db";
 import { EXERCISE_INFO } from "./review-labels";
 
 export type PlanKind = "repaso" | "flojo" | "oido" | "boca";
@@ -34,15 +34,6 @@ const KIND_LABEL: Record<PlanKind, string> = {
 };
 
 export const PLAN_KIND_LABEL = KIND_LABEL;
-
-type StatRow = RowDataPacket & {
-  exercise: ExerciseKey;
-  item_type: string;
-  total: number;
-  mastered: number;
-  due: number;
-  pending: number;
-};
 
 /** Suma días a una fecha YYYY-MM-DD sin que la zona horaria la corra un día. */
 function masDias(dia: string, delta: number): string {
@@ -79,17 +70,11 @@ function contarRacha(dias: string[], hoy: string): number {
 export async function getDailyPlan(): Promise<DailyPlan> {
   const settings = await getSettings();
 
-  const [[{ hoy: diaDeHoy }], stats, hoy, dias] = await Promise.all([
+  const [[{ hoy: diaDeHoy }], porEjercicio, hoy, dias] = await Promise.all([
     query<(RowDataPacket & { hoy: string })[]>(
       "SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS hoy",
     ),
-    query<StatRow[]>(
-      `SELECT exercise, item_type, COUNT(*) total, SUM(mastered) mastered,
-              SUM(mastered = 1 AND review_due <= CURDATE()) due,
-              SUM(active = 1 AND mastered = 0) pending
-         FROM progress
-        GROUP BY exercise, item_type`,
-    ),
+    getStatsByExercise(),
     query<(RowDataPacket & { exercise: ExerciseKey; answers: number; correct: number })[]>(
       "SELECT exercise, answers, correct FROM activity WHERE day = CURDATE()",
     ),
@@ -103,23 +88,6 @@ export async function getDailyPlan(): Promise<DailyPlan> {
   const hechoPorEjercicio = new Map(
     hoy.map((r) => [r.exercise, Number(r.answers)]),
   );
-
-  // Solo cuenta el tipo principal de cada ejercicio: en «traducir» los verbos
-  // son filtro, no progreso.
-  const porEjercicio = new Map<
-    ExerciseKey,
-    { total: number; mastered: number; due: number; pending: number }
-  >();
-  for (const row of stats) {
-    const principal = EXERCISE_ITEM_TYPES[row.exercise]?.[0];
-    if (!principal || principal !== row.item_type) continue;
-    porEjercicio.set(row.exercise, {
-      total: Number(row.total),
-      mastered: Number(row.mastered),
-      due: Number(row.due),
-      pending: Number(row.pending),
-    });
-  }
 
   const info = (exercise: ExerciseKey) =>
     EXERCISE_INFO[exercise] ?? { name: exercise, href: "/a1" };

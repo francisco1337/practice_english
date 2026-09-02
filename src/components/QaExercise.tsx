@@ -295,6 +295,24 @@ export default function QaExercise({
                     {pair.answer}
                   </p>
                 )}
+                {/* El español deja el sujeto implícito; aquí lo importante es
+                    acertar do o does, no adivinar el pronombre. */}
+                {pair.subject && (
+                  <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs">
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      Pregunta con{" "}
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {pair.subject.question}
+                      </span>
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      Contesta con{" "}
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {pair.subject.answer}
+                      </span>
+                    </span>
+                  </div>
+                )}
               </>
             )}
 

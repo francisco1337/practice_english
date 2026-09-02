@@ -10,6 +10,7 @@ import { presentForms } from "./present-forms.mjs";
 import { presentSentences } from "./sentences/present.mjs";
 import { qaForms } from "./qa-forms.mjs";
 import { qaPairs } from "./sentences/qa.mjs";
+import { qaSubjects } from "./qa-subjects.mjs";
 import { thirdForms } from "./third-forms.mjs";
 import { thirdSentences } from "./sentences/third.mjs";
 import { thereForms } from "./there-forms.mjs";
@@ -263,6 +264,8 @@ await conn.query(`
     english_question VARCHAR(255) NOT NULL,
     english_answer VARCHAR(255) NOT NULL,
     cue VARCHAR(255) NOT NULL,
+    question_subject VARCHAR(40) NOT NULL DEFAULT '',
+    answer_subject VARCHAR(40) NOT NULL DEFAULT '',
     UNIQUE KEY uq_qa_pairs_question (spanish_question),
     KEY idx_qa_pairs_level (level),
     KEY idx_qa_pairs_form (form_id),
@@ -732,17 +735,37 @@ await conn.query(
 const [qaRows] = await conn.query("SELECT id, slug FROM qa_forms");
 const qaId = new Map(qaRows.map((r) => [r.slug, r.id]));
 
+// Los sujetos se muestran como pista: en do/does el reto es el auxiliar, no
+// adivinar el pronombre que el español dejó implícito.
+const [[{ tieneSujetos }]] = await conn.query(
+  `SELECT COUNT(*) AS tieneSujetos FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'qa_pairs'
+      AND column_name = 'question_subject'`,
+);
+if (!tieneSujetos) {
+  await conn.query(
+    `ALTER TABLE qa_pairs
+       ADD COLUMN question_subject VARCHAR(40) NOT NULL DEFAULT '' AFTER cue,
+       ADD COLUMN answer_subject VARCHAR(40) NOT NULL DEFAULT '' AFTER question_subject`,
+  );
+  console.log("qa_pairs: sujetos agregados");
+}
+
 await conn.query(
   `INSERT INTO qa_pairs
-     (level, form_id, spanish_question, spanish_answer, english_question, english_answer, cue)
+     (level, form_id, spanish_question, spanish_answer, english_question, english_answer, cue,
+      question_subject, answer_subject)
      VALUES ?
      ON DUPLICATE KEY UPDATE level = VALUES(level), form_id = VALUES(form_id),
        spanish_answer = VALUES(spanish_answer), english_question = VALUES(english_question),
-       english_answer = VALUES(english_answer), cue = VALUES(cue)`,
+       english_answer = VALUES(english_answer), cue = VALUES(cue),
+       question_subject = VALUES(question_subject),
+       answer_subject = VALUES(answer_subject)`,
   [
-    qaPairs.map(([level, slug, esQ, esA, enQ, enA, cue]) => {
+    qaPairs.map(([level, slug, esQ, esA, enQ, enA, cue, sujetos]) => {
       if (!qaId.has(slug)) throw new Error(`Forma de pregunta desconocida: ${slug}`);
-      return [level, qaId.get(slug), esQ, esA, enQ, enA, cue];
+      const { question, answer } = qaSubjects(enQ, enA, sujetos);
+      return [level, qaId.get(slug), esQ, esA, enQ, enA, cue, question, answer];
     }),
   ],
 );
