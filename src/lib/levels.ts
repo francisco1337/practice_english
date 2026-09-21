@@ -17,4 +17,11 @@ export const levels: Level[] = [
       "Verbos básicos, pronombres, presente simple y frases del día a día.",
     available: true,
   },
+  {
+    href: "/a2",
+    code: "A2",
+    name: "Básico",
+    description: "90 verbos nuevos para relacionar, escribir, oír y pronunciar.",
+    available: true,
+  },
 ];

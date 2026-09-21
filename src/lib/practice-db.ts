@@ -10,6 +10,7 @@ import {
   SPEECH_RATE_MAX,
   SPEECH_RATE_MIN,
   SENTENCE_MODES,
+  VERB_EXERCISE_LEVEL,
   isSentenceCorrect,
   type ExerciseKey,
   type ItemType,
@@ -152,14 +153,18 @@ async function getItems(
     },
   }[itemType];
 
+  // Los verbos de A1 y A2 comparten tabla; cada ejercicio ve solo los de su nivel.
+  const level = itemType === "verb" ? VERB_EXERCISE_LEVEL[exercise] : undefined;
+
   const rows = await query<ItemRow[]>(
     `SELECT v.id, ${catalog.columns},
             p.correct_count, p.wrong_count, p.mastered, p.active, p.review_due,
             DATEDIFF(p.review_due, CURDATE()) AS days_to_review
        FROM ${catalog.table} v
        JOIN progress p ON p.item_id = v.id AND p.item_type = ? AND p.exercise = ?
+      ${level ? "WHERE v.level = ?" : ""}
       ORDER BY v.id`,
-    [itemType, exercise],
+    level ? [itemType, exercise, level] : [itemType, exercise],
   );
   return rows.map((row) => toItem(row, itemType));
 }
@@ -1143,14 +1148,16 @@ export async function getStatsByExercise(): Promise<
   return porEjercicio;
 }
 
-/** Cuántos verbos llevas marcados como estudiados en la lista. */
-export async function getVerbStudiedCount(): Promise<{
+/** Cuántos verbos llevas marcados como estudiados en la lista del nivel. */
+export async function getVerbStudiedCount(level = "A1"): Promise<{
   studied: number;
   total: number;
 }> {
   const rows = await query<
     (RowDataPacket & { studied: number; total: number })[]
-  >("SELECT SUM(studied) studied, COUNT(*) total FROM verbs");
+  >("SELECT SUM(studied) studied, COUNT(*) total FROM verbs WHERE level = ?", [
+    level,
+  ]);
   return {
     studied: Number(rows[0]?.studied ?? 0),
     total: Number(rows[0]?.total ?? 0),

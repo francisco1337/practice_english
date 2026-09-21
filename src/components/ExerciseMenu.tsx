@@ -4,10 +4,12 @@ import { getMenuProgress } from "@/lib/menu-progress";
 
 export default async function ExerciseMenu({
   exercises,
+  level = "A1",
 }: {
   exercises: ExerciseCard[];
+  level?: string;
 }) {
-  const progreso = await getMenuProgress();
+  const progreso = await getMenuProgress(level);
 
   return (
     <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">

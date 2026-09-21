@@ -50,13 +50,13 @@ function porcentaje(
   };
 }
 
-const cargar = cache(async () => {
+const cargar = cache(async (level: string) => {
   // El avance se lee en cada visita; si no, el build lo congelaría.
   await connection();
 
   const [stats, verbos, examen] = await Promise.all([
     getStatsByExercise(),
-    getVerbStudiedCount(),
+    getVerbStudiedCount(level),
     query<(RowDataPacket & { correct_count: number; total: number })[]>(
       `SELECT correct_count, total FROM exam_attempts
         WHERE finished_at IS NOT NULL AND total > 0
@@ -69,15 +69,19 @@ const cargar = cache(async () => {
 });
 
 /**
- * Avance para pintarlo en el menú. Se calcula una vez por petición aunque lo
- * pidan varios grupos de cards.
+ * Avance para pintarlo en el menú del nivel. Se calcula una vez por petición
+ * aunque lo pidan varios grupos de cards. Solo cuenta los ejercicios del nivel:
+ * su ruta empieza por `/a1`, `/a2`, etc.
  */
-export async function getMenuProgress(): Promise<MenuProgress> {
-  const { stats, verbos, mejorExamen } = await cargar();
+export async function getMenuProgress(level = "A1"): Promise<MenuProgress> {
+  const { stats, verbos, mejorExamen } = await cargar(level);
+  const prefijo = `/${level.toLowerCase()}`;
+  const esDelNivel = (clave: ExerciseKey) =>
+    (EXERCISE_INFO[clave]?.href ?? "").startsWith(prefijo);
 
   const forHref = (href: string): CardProgress | null => {
     // La lista de verbos y el examen no llevan «dominado», pero sí avance.
-    if (href === "/a1/verbos") {
+    if (href === `${prefijo}/verbos`) {
       return verbos.total > 0
         ? porcentaje(
             verbos.studied,
@@ -86,7 +90,7 @@ export async function getMenuProgress(): Promise<MenuProgress> {
           )
         : null;
     }
-    if (href === "/a1/examen") {
+    if (href === `${prefijo}/examen`) {
       if (!mejorExamen) return null;
       const aciertos = Number(mejorExamen.correct_count);
       const total = Number(mejorExamen.total);
@@ -113,7 +117,8 @@ export async function getMenuProgress(): Promise<MenuProgress> {
 
   let done = 0;
   let total = 0;
-  for (const [, s] of stats) {
+  for (const [clave, s] of stats) {
+    if (!esDelNivel(clave)) continue;
     done += s.mastered;
     total += s.total;
   }

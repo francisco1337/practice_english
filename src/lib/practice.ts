@@ -5,6 +5,12 @@ export type ExerciseKey =
   | "a1-match-rev"
   | "a1-write"
   | "a1-write-rev"
+  | "a2-match"
+  | "a2-match-rev"
+  | "a2-write"
+  | "a2-write-rev"
+  | "a2-dict"
+  | "a2-speak"
   | "pron-match"
   | "pron-match-rev"
   | "translate"
@@ -88,6 +94,12 @@ export const EXERCISE_ITEM_TYPES: Record<ExerciseKey, ItemType[]> = {
   "a1-match-rev": ["verb"],
   "a1-write": ["verb"],
   "a1-write-rev": ["verb"],
+  "a2-match": ["verb"],
+  "a2-match-rev": ["verb"],
+  "a2-write": ["verb"],
+  "a2-write-rev": ["verb"],
+  "a2-dict": ["verb"],
+  "a2-speak": ["verb"],
   "pron-match": ["pronoun"],
   "pron-match-rev": ["pronoun"],
   translate: ["pronoun", "verb"],
@@ -155,6 +167,29 @@ export const EXERCISE_ITEM_TYPES: Record<ExerciseKey, ItemType[]> = {
 export function isExerciseKey(value: string): value is ExerciseKey {
   return value in EXERCISE_ITEM_TYPES;
 }
+
+/**
+ * Nivel del catálogo de verbos que usa cada ejercicio de verbos. Los verbos
+ * viven en una sola tabla con su columna `level`, así que los ejercicios de A1
+ * y A2 comparten tipo de elemento (`verb`) pero se filtran por nivel para no
+ * mezclar sus listas ni su progreso. `translate` usa verbos solo como filtro de
+ * las frases de pronombres, que son de A1.
+ */
+export const VERB_EXERCISE_LEVEL: Partial<Record<ExerciseKey, string>> = {
+  "a1-match": "A1",
+  "a1-match-rev": "A1",
+  "a1-write": "A1",
+  "a1-write-rev": "A1",
+  "a1-dict": "A1",
+  "a1-speak": "A1",
+  translate: "A1",
+  "a2-match": "A2",
+  "a2-match-rev": "A2",
+  "a2-write": "A2",
+  "a2-write-rev": "A2",
+  "a2-dict": "A2",
+  "a2-speak": "A2",
+};
 
 /** Elemento practicable (verbo o pronombre) con su progreso. */
 export type PracticeItem = {

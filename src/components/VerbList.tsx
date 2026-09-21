@@ -23,10 +23,12 @@ function tenses(verb: VerbEntry) {
 
 export default function VerbList({
   verbs,
+  level = "A1",
   speechEnabled,
   speechRate,
 }: {
   verbs: VerbEntry[];
+  level?: string;
   speechEnabled: boolean;
   speechRate: number;
 }) {
@@ -53,7 +55,7 @@ export default function VerbList({
       const res = await fetch("/api/verbs/studied", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ english, studied: value }),
+        body: JSON.stringify({ english, studied: value, level }),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
     } catch {

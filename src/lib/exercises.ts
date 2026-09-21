@@ -117,6 +117,57 @@ export const a1Groups: ExerciseGroup[] = [
   },
 ];
 
+/** Contenido del nivel A2: por ahora, solo la sección de verbos. */
+export const a2Groups: ExerciseGroup[] = [
+  {
+    id: "verbos",
+    title: "Verbos",
+    items: [
+      {
+        href: "/a2/relacionar",
+        name: "Relacionar",
+        description:
+          "Te damos el verbo en español y eliges la traducción correcta en inglés.",
+      },
+      {
+        href: "/a2/relacionar-inverso",
+        name: "Relacionar inverso",
+        description:
+          "Te damos el verbo en inglés y eliges qué significa en español.",
+      },
+      {
+        href: "/a2/escribir",
+        name: "Escribir",
+        description: "Te damos el verbo en español y lo escribes en inglés.",
+      },
+      {
+        href: "/a2/escribir-inverso",
+        name: "Escribir inverso",
+        description: "Te damos el verbo en inglés y lo escribes en español.",
+      },
+      {
+        href: "/a2/pronunciar",
+        name: "Pronunciar",
+        description:
+          "Se muestra el verbo en inglés, tú lo dices y el navegador compara lo que escuchó.",
+      },
+      {
+        href: "/a2/dictado",
+        name: "Dictado",
+        description:
+          "Se pronuncia el verbo en inglés y tú lo escribes. Entrena el oído con los 90 verbos.",
+      },
+      {
+        href: "/a2/verbos",
+        name: "Lista de verbos",
+        description:
+          "Los 90 verbos con todas sus formas y un ejemplo en cada tiempo, separados en regulares e irregulares.",
+        cta: "Ver lista",
+      },
+    ],
+  },
+];
+
 /** Evaluación y repaso del nivel. */
 export const examGroup: ExerciseGroup = {
   id: "evaluacion",

@@ -1,6 +1,8 @@
 import mysql from "mysql2/promise";
 import { verbsA1 } from "./verbs-a1.mjs";
 import { verbForms } from "./verb-forms.mjs";
+import { verbsA2 } from "./verbs-a2.mjs";
+import { verbFormsA2 } from "./verb-forms-a2.mjs";
 import { pronouns } from "./pronouns.mjs";
 import { tobeForms } from "./tobe-forms.mjs";
 import { tobeSentences } from "./sentences/tobe.mjs";
@@ -45,6 +47,12 @@ const EXERCISES = [
   ["a1-match-rev", ["verb"]],
   ["a1-write", ["verb"]],
   ["a1-write-rev", ["verb"]],
+  ["a2-match", ["verb"]],
+  ["a2-match-rev", ["verb"]],
+  ["a2-write", ["verb"]],
+  ["a2-write-rev", ["verb"]],
+  ["a2-dict", ["verb"]],
+  ["a2-speak", ["verb"]],
   ["pron-match", ["pronoun"]],
   ["pron-match-rev", ["pronoun"]],
   ["translate", ["pronoun", "verb"]],
@@ -108,6 +116,27 @@ const EXERCISES = [
   ["prep-speak", ["prep"]],
   ["adv-speak", ["adv"]],
 ];
+
+/**
+ * Nivel del catálogo de verbos que usa cada ejercicio de verbos: A1 y A2 viven
+ * en la misma tabla y se separan por su columna `level`. Debe coincidir con
+ * VERB_EXERCISE_LEVEL de src/lib/practice.ts.
+ */
+const VERB_LEVEL = {
+  "a1-match": "A1",
+  "a1-match-rev": "A1",
+  "a1-write": "A1",
+  "a1-write-rev": "A1",
+  "a1-dict": "A1",
+  "a1-speak": "A1",
+  translate: "A1",
+  "a2-match": "A2",
+  "a2-match-rev": "A2",
+  "a2-write": "A2",
+  "a2-write-rev": "A2",
+  "a2-dict": "A2",
+  "a2-speak": "A2",
+};
 
 /** Los cuatro temas de expresiones comparten la misma forma de tabla. */
 const EXPRESSION_TABLES = [
@@ -633,8 +662,11 @@ await conn.query(
   `INSERT INTO verbs (level, english, spanish, spanish_alt) VALUES ?
      ON DUPLICATE KEY UPDATE spanish = VALUES(spanish), spanish_alt = VALUES(spanish_alt)`,
   [
-    verbsA1.map(([english, spanish, alt]) => [
-      "A1",
+    [
+      ...verbsA1.map(([english, spanish, alt]) => ["A1", english, spanish, alt]),
+      ...verbsA2.map(([english, spanish, alt]) => ["A2", english, spanish, alt]),
+    ].map(([level, english, spanish, alt]) => [
+      level,
       english,
       spanish,
       alt && alt.length ? JSON.stringify(alt) : null,
@@ -929,11 +961,16 @@ await seedExpression("phrase_items", phraseItems, null, null, null);
 }
 
 // Conjugación de cada verbo (para la lista de consulta)
-{
-  const porVerbo = new Map(verbForms.map((f) => [f[0], f]));
-  const faltantes = verbsA1.filter(([english]) => !porVerbo.has(english));
+for (const [level, catalogo, formas] of [
+  ["A1", verbsA1, verbForms],
+  ["A2", verbsA2, verbFormsA2],
+]) {
+  const porVerbo = new Map(formas.map((f) => [f[0], f]));
+  const faltantes = catalogo.filter(([english]) => !porVerbo.has(english));
   if (faltantes.length > 0) {
-    throw new Error(`Sin formas: ${faltantes.map(([v]) => v).join(", ")}`);
+    throw new Error(
+      `Sin formas (${level}): ${faltantes.map(([v]) => v).join(", ")}`,
+    );
   }
 
   await conn.query(
@@ -943,11 +980,11 @@ await seedExpression("phrase_items", phraseItems, null, null, null);
          past = VALUES(past), participle = VALUES(participle),
          irregular = VALUES(irregular), form_note = VALUES(form_note)`,
     [
-      verbsA1.map(([english, spanish]) => {
+      catalogo.map(([english, spanish]) => {
         const [, third, gerund, past, participle, irregular, note] =
           porVerbo.get(english);
         return [
-          "A1",
+          level,
           english,
           spanish,
           third,
@@ -961,7 +998,7 @@ await seedExpression("phrase_items", phraseItems, null, null, null);
     ],
   );
   console.log(
-    `verbos: conjugación de ${verbsA1.length} (irregulares: ${verbForms.filter((f) => f[5]).map((f) => f[0]).join(", ")})`,
+    `verbos ${level}: conjugación de ${catalogo.length} (irregulares: ${formas.filter((f) => f[5]).map((f) => f[0]).join(", ")})`,
   );
 }
 
@@ -1052,10 +1089,13 @@ for (const [exercise, itemTypes] of EXERCISES) {
         adv: "adv_forms",
         phrase: "phrase_items",
       }[itemType];
+    // Los verbos de cada nivel viven en la misma tabla; el ejercicio solo
+    // registra progreso de los verbos de su nivel.
+    const nivel = itemType === "verb" ? VERB_LEVEL[exercise] : undefined;
     const [res] = await conn.query(
       `INSERT IGNORE INTO progress (exercise, item_type, item_id)
-         SELECT ?, ?, id FROM ${table}`,
-      [exercise, itemType],
+         SELECT ?, ?, id FROM ${table}${nivel ? " WHERE level = ?" : ""}`,
+      nivel ? [exercise, itemType, nivel] : [exercise, itemType],
     );
     if (res.affectedRows > 0) {
       console.log(`progress ${exercise}/${itemType}: ${res.affectedRows} filas`);
