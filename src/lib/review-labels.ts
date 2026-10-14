@@ -1,3 +1,4 @@
+import { A2_EXERCISE_INFO } from "./a2";
 import type { ExerciseKey } from "./practice";
 
 /** Nombre y ruta de cada ejercicio, para la pantalla de repaso. */
@@ -74,4 +75,5 @@ export const EXERCISE_INFO: Record<ExerciseKey, { name: string; href: string }> 
   "wh-speak": { name: "Palabras de pregunta · Pronunciar", href: "/a1/preguntas/pronunciar" },
   "prep-speak": { name: "Preposiciones · Pronunciar", href: "/a1/preposiciones/pronunciar" },
   "adv-speak": { name: "Adverbios · Pronunciar", href: "/a1/adverbios/pronunciar" },
+  ...A2_EXERCISE_INFO,
 };

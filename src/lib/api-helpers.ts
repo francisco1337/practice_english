@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { A2_ITEM_TYPES } from "./a2";
 import {
   isExerciseKey,
   isQaExerciseKey,
@@ -32,6 +33,7 @@ const ITEM_TYPES: ItemType[] = [
   "prep",
   "adv",
   "phrase",
+  ...A2_ITEM_TYPES,
 ];
 
 export function parseItemType(value: unknown): ItemType | null {

@@ -21,7 +21,8 @@ export const levels: Level[] = [
     href: "/a2",
     code: "A2",
     name: "Básico",
-    description: "90 verbos nuevos para relacionar, escribir, oír y pronunciar.",
+    description:
+      "90 verbos nuevos, pasado, futuro, modales, comparativos, conectores e inglés de trabajo.",
     available: true,
   },
 ];

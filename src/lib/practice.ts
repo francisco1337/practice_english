@@ -1,5 +1,15 @@
 /** Tipos, constantes y lógica compartida entre servidor y cliente. */
 
+import {
+  A2_CATEGORY_LABELS,
+  A2_EXERCISE_ITEM_TYPES,
+  A2_SENTENCE_LEVEL_LABELS,
+  A2_SENTENCE_MODES,
+  type A2ExerciseKey,
+  type A2ItemType,
+  type A2SentenceKey,
+} from "./a2";
+
 export type ExerciseKey =
   | "a1-match"
   | "a1-match-rev"
@@ -72,7 +82,8 @@ export type ExerciseKey =
   | "pc-speak"
   | "wh-speak"
   | "prep-speak"
-  | "adv-speak";
+  | "adv-speak"
+  | A2ExerciseKey;
 
 export type ItemType =
   | "verb"
@@ -87,7 +98,8 @@ export type ItemType =
   | "wh"
   | "prep"
   | "adv"
-  | "phrase";
+  | "phrase"
+  | A2ItemType;
 
 export const EXERCISE_ITEM_TYPES: Record<ExerciseKey, ItemType[]> = {
   "a1-match": ["verb"],
@@ -162,6 +174,7 @@ export const EXERCISE_ITEM_TYPES: Record<ExerciseKey, ItemType[]> = {
   "wh-speak": ["wh"],
   "prep-speak": ["prep"],
   "adv-speak": ["adv"],
+  ...A2_EXERCISE_ITEM_TYPES,
 };
 
 export function isExerciseKey(value: string): value is ExerciseKey {
@@ -313,7 +326,8 @@ export type SentenceExerciseKey =
   | "pc-speak"
   | "wh-speak"
   | "prep-speak"
-  | "adv-speak";
+  | "adv-speak"
+  | A2SentenceKey;
 
 export const SENTENCE_MODES: Record<SentenceExerciseKey, SentenceMode> = {
   translate: "es-en",
@@ -358,6 +372,7 @@ export const SENTENCE_MODES: Record<SentenceExerciseKey, SentenceMode> = {
   "wh-speak": "speak",
   "prep-speak": "speak",
   "adv-speak": "speak",
+  ...A2_SENTENCE_MODES,
 };
 
 export function isSentenceExerciseKey(
@@ -543,6 +558,7 @@ export const SENTENCE_LEVEL_LABELS: Record<
   "wh-speak": WH_LEVEL_LABELS,
   "prep-speak": PREP_LEVEL_LABELS,
   "adv-speak": ADV_LEVEL_LABELS,
+  ...A2_SENTENCE_LEVEL_LABELS,
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -589,6 +605,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   cortesia: "Cortesía",
   clase: "Frases para la clase",
   peticion: "Pedir algo",
+  ...A2_CATEGORY_LABELS,
 };
 
 /**

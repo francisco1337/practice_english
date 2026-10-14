@@ -104,6 +104,42 @@ Cuatro temas de vocabulario y uso, cada uno con los ejercicios que ese tema real
 - **Frases útiles** (14): *Relacionar*, *Relacionar inverso* y *Escribir*. Al escribir se aceptan
   variantes (`You're welcome`, `Thanks a lot`, `Could you repeat that, please?`).
 
+## Nivel A2
+
+Contenido sacado de «Inglés A2 - Curso completo.xlsx». Los verbos (90) comparten la tabla
+`verbs` con A1 (columna `level`); la gramática y las expresiones usan dos tablas genéricas:
+
+- `a2_items` — elementos de todos los temas, separados por `topic` (que es el tipo de elemento:
+  `a2past`, `a2prep`…)
+- `a2_sentences` — banco de frases de los temas de gramática: 10 por nivel, cada una con su
+  versión para completar (`cloze_text`, `cloze_answer`) y su versión mal escrita (`wrong_english`)
+
+| Tema | Tipo | Ruta | Contenido |
+|---|---|---|---|
+| Pasado simple | `a2past` | `/a2/pasado-simple` | gramática |
+| Pasado continuo | `a2pastc` | `/a2/pasado-continuo` | gramática |
+| Futuro: will y going to | `a2fut` | `/a2/futuro` | gramática |
+| Modales y peticiones | `a2modal` | `/a2/modales` | gramática |
+| Comparativos y superlativos | `a2comp` | `/a2/comparativos` | gramática |
+| Cantidades | `a2quant` | `/a2/cantidades` | gramática |
+| Conectores | `a2conn` | `/a2/conectores` | gramática |
+| Preguntas útiles | `a2quest` | `/a2/preguntas` | expresiones |
+| Preposiciones | `a2prep` | `/a2/preposiciones` | expresiones |
+| Adverbios | `a2adv` | `/a2/adverbios` | expresiones |
+| Adjetivos | `a2adj` | `/a2/adjetivos` | expresiones |
+| Inglés de trabajo | `a2work` | `/a2/trabajo` | expresiones |
+
+Los temas de gramática tienen teoría y los ejercicios `-match`, `-translate`,
+`-translate-rev`, `-cloze`, `-fix`, `-dict` y `-speak`; los de expresiones, `-match`,
+`-match-rev`, `-write`, `-dict` y `-speak` (la clave es `<tipo>-<sufijo>`, p. ej.
+`a2past-cloze`). Todo sale de `src/lib/a2.ts` y de las rutas dinámicas
+`src/app/a2/[tema]/…`, así que agregar un tema es:
+
+1. Su contenido en `scripts/a2/<tema>.mjs` y su entrada en `scripts/a2/index.mjs`.
+2. Su entrada en `A2_TOPICS` de `src/lib/a2.ts` (y su teoría en `src/lib/theory-a2/` si es gramática).
+3. `npm run db:init`. En A2 el contenido manda: lo que se quita de `scripts/a2` se borra de la base
+   junto con su progreso.
+
 ## Examen de cierre de A1
 
 `/a1/examen` — 66 reactivos en 7 secciones: los 6 bloques del nivel más una de comprensión auditiva:

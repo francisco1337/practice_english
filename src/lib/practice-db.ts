@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2";
+import { A2_SENTENCE_KEYS, isA2ItemType, type A2SentenceKey } from "./a2";
 import { execute, query } from "./db";
 import {
   EXERCISE_ITEM_TYPES,
@@ -85,73 +86,81 @@ async function getItems(
   exercise: ExerciseKey,
   itemType: ItemType,
 ): Promise<PracticeItem[]> {
-  const catalog = {
-    verb: {
-      table: "verbs",
-      columns:
-        "v.english, v.spanish, v.spanish_alt, NULL AS english_alt, NULL AS category, NULL AS hint",
-    },
-    pronoun: {
-      table: "pronouns",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    tobe: {
-      table: "tobe_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    article: {
-      table: "article_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    present: {
-      table: "present_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    qa: {
-      table: "qa_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    third: {
-      table: "third_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    there: {
-      table: "there_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    cont: {
-      table: "cont_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
-    },
-    wh: {
-      table: "wh_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
-    },
-    prep: {
-      table: "prep_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
-    },
-    adv: {
-      table: "adv_forms",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
-    },
-    phrase: {
-      table: "phrase_items",
-      columns:
-        "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
-    },
-  }[itemType];
+  // Los temas de A2 comparten una sola tabla; el join con progress ya deja
+  // solo los elementos del tema.
+  const catalog = isA2ItemType(itemType)
+    ? {
+        table: "a2_items",
+        columns:
+          "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
+      }
+    : {
+        verb: {
+          table: "verbs",
+          columns:
+            "v.english, v.spanish, v.spanish_alt, NULL AS english_alt, NULL AS category, NULL AS hint",
+        },
+        pronoun: {
+          table: "pronouns",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        tobe: {
+          table: "tobe_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        article: {
+          table: "article_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        present: {
+          table: "present_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        qa: {
+          table: "qa_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        third: {
+          table: "third_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        there: {
+          table: "there_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        cont: {
+          table: "cont_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, NULL AS english_alt, v.category, v.hint",
+        },
+        wh: {
+          table: "wh_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
+        },
+        prep: {
+          table: "prep_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
+        },
+        adv: {
+          table: "adv_forms",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
+        },
+        phrase: {
+          table: "phrase_items",
+          columns:
+            "v.english, v.spanish, NULL AS spanish_alt, v.english_alt, v.category, v.hint",
+        },
+      }[itemType];
 
   // Los verbos de A1 y A2 comparten tabla; cada ejercicio ve solo los de su nivel.
   const level = itemType === "verb" ? VERB_EXERCISE_LEVEL[exercise] : undefined;
@@ -712,6 +721,28 @@ const SENTENCE_EXERCISES = {
     itemColumn: "form_id",
     withVerbs: false,
   },
+  // A2: todas las frases viven en a2_sentences, ligadas a su elemento.
+  ...(Object.fromEntries(
+    A2_SENTENCE_KEYS.map((key) => [
+      key,
+      {
+        itemType: key.slice(0, key.indexOf("-")) as ItemType,
+        table: "a2_sentences",
+        itemTable: "a2_items",
+        itemColumn: "item_id",
+        withVerbs: false,
+      },
+    ]),
+  ) as Record<
+    A2SentenceKey,
+    {
+      itemType: ItemType;
+      table: string;
+      itemTable: string;
+      itemColumn: string;
+      withVerbs: false;
+    }
+  >),
 } satisfies Record<SentenceExerciseKey, unknown>;
 
 type SentenceRow = RowDataPacket & {
@@ -753,14 +784,18 @@ function parseAlternatives(
 
 function sentenceSelect(exercise: SentenceExerciseKey) {
   const t = SENTENCE_EXERCISES[exercise];
-  const hasCloze = ["present_sentences", "wh_sentences", "prep_sentences"].includes(
-    t.table,
-  );
+  const hasCloze = [
+    "present_sentences",
+    "wh_sentences",
+    "prep_sentences",
+    "a2_sentences",
+  ].includes(t.table);
   const hasWrong = [
     "third_sentences",
     "there_sentences",
     "cont_sentences",
     "adv_sentences",
+    "a2_sentences",
   ].includes(t.table);
   return `
     SELECT s.id, s.level, s.spanish, s.english,

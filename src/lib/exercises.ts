@@ -1,3 +1,5 @@
+import { A2_TOPICS, a2ExercisesOf, isGrammarTopic, type A2Topic } from "./a2";
+
 export type ExerciseCard = {
   href: string;
   name: string;
@@ -117,7 +119,7 @@ export const a1Groups: ExerciseGroup[] = [
   },
 ];
 
-/** Contenido del nivel A2: por ahora, solo la sección de verbos. */
+/** Contenido del nivel A2: verbos, gramática y expresiones. */
 export const a2Groups: ExerciseGroup[] = [
   {
     id: "verbos",
@@ -166,7 +168,49 @@ export const a2Groups: ExerciseGroup[] = [
       },
     ],
   },
+  {
+    id: "gramatica",
+    title: "Gramática",
+    items: A2_TOPICS.filter(isGrammarTopic).map(topicCard),
+  },
+  {
+    id: "expresiones",
+    title: "Expresiones",
+    items: A2_TOPICS.filter((topic) => !isGrammarTopic(topic)).map(topicCard),
+  },
 ];
+
+function topicCard(topic: A2Topic): ExerciseCard {
+  return {
+    href: `/a2/${topic.slug}`,
+    name: topic.title,
+    description: topic.description,
+  };
+}
+
+/** Cards de un tema de A2: la teoría (si tiene) y sus ejercicios. */
+export function a2TopicExercises(topic: A2Topic): ExerciseCard[] {
+  const base = `/a2/${topic.slug}`;
+  const theory: ExerciseCard[] = topic.theory
+    ? [
+        {
+          href: `${base}/teoria`,
+          name: "Teoría",
+          description:
+            "Las reglas del tema con tablas, ejemplos y los errores típicos. Para leer antes de practicar.",
+          cta: "Leer",
+        },
+      ]
+    : [];
+  return [
+    ...theory,
+    ...a2ExercisesOf(topic).map((exercise) => ({
+      href: `${base}/${exercise.path}`,
+      name: exercise.name,
+      description: exercise.description,
+    })),
+  ];
+}
 
 /** Evaluación y repaso del nivel. */
 export const examGroup: ExerciseGroup = {

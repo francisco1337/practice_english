@@ -27,6 +27,7 @@ import { advForms } from "./adv-forms.mjs";
 import { advSentences } from "./sentences/adv.mjs";
 import { phraseItems } from "./phrase-items.mjs";
 import { examQuestions, examSections } from "./exam.mjs";
+import { a2Exercises, a2Topics } from "./a2/index.mjs";
 import { level1 } from "./sentences/level1.mjs";
 import { level2 } from "./sentences/level2.mjs";
 import { level3 } from "./sentences/level3.mjs";
@@ -115,7 +116,12 @@ const EXERCISES = [
   ["wh-speak", ["wh"]],
   ["prep-speak", ["prep"]],
   ["adv-speak", ["adv"]],
+  // Gramática y expresiones de A2 (scripts/a2/index.mjs).
+  ...a2Exercises,
 ];
+
+/** Tipos de elemento de A2: todos viven en a2_items, separados por topic. */
+const A2_TEMAS = new Set(a2Topics.map(({ topic }) => topic));
 
 /**
  * Nivel del catálogo de verbos que usa cada ejercicio de verbos: A1 y A2 viven
@@ -422,6 +428,40 @@ for (const [formsTable, sentencesTable, extra] of EXPRESSION_TABLES) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 }
+
+// A2: un solo catálogo y un solo banco de frases para todos los temas; la
+// columna topic es el tipo de elemento (a2past, a2prep…).
+await conn.query(`
+  CREATE TABLE IF NOT EXISTS a2_items (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    topic VARCHAR(16) NOT NULL,
+    slug VARCHAR(48) NOT NULL,
+    english VARCHAR(160) NOT NULL,
+    spanish VARCHAR(160) NOT NULL,
+    category VARCHAR(32) NOT NULL,
+    hint VARCHAR(400) NOT NULL,
+    english_alt JSON NULL,
+    UNIQUE KEY uq_a2_items_topic_slug (topic, slug)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`);
+
+await conn.query(`
+  CREATE TABLE IF NOT EXISTS a2_sentences (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    topic VARCHAR(16) NOT NULL,
+    level TINYINT UNSIGNED NOT NULL,
+    item_id INT UNSIGNED NOT NULL,
+    spanish VARCHAR(255) NOT NULL,
+    english VARCHAR(255) NOT NULL,
+    cloze_text VARCHAR(255) NOT NULL,
+    cloze_answer VARCHAR(64) NOT NULL,
+    wrong_english VARCHAR(255) NOT NULL,
+    alternatives JSON NULL,
+    UNIQUE KEY uq_a2_sentences_topic_spanish (topic, spanish),
+    KEY idx_a2_sentences_level (topic, level),
+    CONSTRAINT fk_a2_sentences_item FOREIGN KEY (item_id) REFERENCES a2_items (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`);
 
 await conn.query(`
   CREATE TABLE IF NOT EXISTS exam_questions (
@@ -920,6 +960,70 @@ await seedExpression("prep_forms", prepForms, "prep_sentences", prepSentences, "
 await seedExpression("adv_forms", advForms, "adv_sentences", advSentences, "wrong");
 await seedExpression("phrase_items", phraseItems, null, null, null);
 
+// A2: el contenido manda. Lo que ya no está en scripts/a2 se borra, con su progreso.
+for (const { topic, items, sentences } of a2Topics) {
+  await conn.query(
+    `INSERT INTO a2_items (topic, slug, english, spanish, category, hint, english_alt) VALUES ?
+       ON DUPLICATE KEY UPDATE english = VALUES(english), spanish = VALUES(spanish),
+         category = VALUES(category), hint = VALUES(hint), english_alt = VALUES(english_alt)`,
+    [
+      items.map(([slug, english, spanish, category, hint, alt]) => [
+        topic,
+        slug,
+        english,
+        spanish,
+        category,
+        hint,
+        alt && alt.length ? JSON.stringify(alt) : null,
+      ]),
+    ],
+  );
+
+  const [rows] = await conn.query("SELECT id, slug FROM a2_items WHERE topic = ?", [topic]);
+  const vigentes = new Set(items.map(([slug]) => slug));
+  const sobran = rows.filter((r) => !vigentes.has(r.slug)).map((r) => r.id);
+  if (sobran.length > 0) {
+    await conn.query("DELETE FROM progress WHERE item_type = ? AND item_id IN (?)", [topic, sobran]);
+    await conn.query("DELETE FROM a2_items WHERE id IN (?)", [sobran]);
+    console.log(`${topic}: ${sobran.length} elementos viejos eliminados`);
+  }
+
+  if (sentences.length > 0) {
+    const idPorSlug = new Map(rows.map((r) => [r.slug, r.id]));
+    await conn.query(
+      `INSERT INTO a2_sentences
+         (topic, level, item_id, spanish, english, cloze_text, cloze_answer, wrong_english, alternatives)
+         VALUES ?
+         ON DUPLICATE KEY UPDATE level = VALUES(level), item_id = VALUES(item_id),
+           english = VALUES(english), cloze_text = VALUES(cloze_text),
+           cloze_answer = VALUES(cloze_answer), wrong_english = VALUES(wrong_english),
+           alternatives = VALUES(alternatives)`,
+      [
+        sentences.map(([level, slug, es, en, clozeText, clozeAnswer, wrong, alt]) => {
+          if (!idPorSlug.has(slug)) throw new Error(`${topic}: slug desconocido ${slug}`);
+          return [
+            topic,
+            level,
+            idPorSlug.get(slug),
+            es,
+            en,
+            clozeText,
+            clozeAnswer,
+            wrong,
+            alt ? JSON.stringify(alt) : null,
+          ];
+        }),
+      ],
+    );
+    const [{ affectedRows: viejas }] = await conn.query(
+      "DELETE FROM a2_sentences WHERE topic = ? AND spanish NOT IN (?)",
+      [topic, sentences.map((s) => s[2])],
+    );
+    if (viejas > 0) console.log(`${topic}: ${viejas} frases viejas eliminadas`);
+  }
+  console.log(`${topic}: ${items.length} elementos, ${sentences.length} frases`);
+}
+
 // Examen de cierre: el banco se identifica por (sección, posición)
 {
   const posiciones = new Map();
@@ -1088,14 +1192,19 @@ for (const [exercise, itemTypes] of EXERCISES) {
         prep: "prep_forms",
         adv: "adv_forms",
         phrase: "phrase_items",
-      }[itemType];
-    // Los verbos de cada nivel viven en la misma tabla; el ejercicio solo
-    // registra progreso de los verbos de su nivel.
-    const nivel = itemType === "verb" ? VERB_LEVEL[exercise] : undefined;
+      }[itemType] ?? (A2_TEMAS.has(itemType) ? "a2_items" : null);
+    // Los verbos de cada nivel viven en la misma tabla, igual que los temas de
+    // A2: el ejercicio solo registra progreso de lo suyo.
+    const filtro =
+      itemType === "verb"
+        ? ["level", VERB_LEVEL[exercise]]
+        : A2_TEMAS.has(itemType)
+          ? ["topic", itemType]
+          : null;
     const [res] = await conn.query(
       `INSERT IGNORE INTO progress (exercise, item_type, item_id)
-         SELECT ?, ?, id FROM ${table}${nivel ? " WHERE level = ?" : ""}`,
-      nivel ? [exercise, itemType, nivel] : [exercise, itemType],
+         SELECT ?, ?, id FROM ${table}${filtro ? ` WHERE ${filtro[0]} = ?` : ""}`,
+      filtro ? [exercise, itemType, filtro[1]] : [exercise, itemType],
     );
     if (res.affectedRows > 0) {
       console.log(`progress ${exercise}/${itemType}: ${res.affectedRows} filas`);
@@ -1129,6 +1238,8 @@ const [[counts]] = await conn.query(`
          (SELECT COUNT(*) FROM prep_sentences) AS prep_frases,
          (SELECT COUNT(*) FROM adv_sentences) AS adv_frases,
          (SELECT COUNT(*) FROM exam_questions) AS examen,
+         (SELECT COUNT(*) FROM a2_items) AS a2_elementos,
+         (SELECT COUNT(*) FROM a2_sentences) AS a2_frases,
          (SELECT COUNT(*) FROM progress) AS progreso
 `);
 console.log(counts);
